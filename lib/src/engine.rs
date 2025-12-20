@@ -1,14 +1,15 @@
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_time::{Duration, Instant, Timer};
 
 #[cfg(feature = "log")]
 use esp_println::println;
 
+use crate::LedDriver;
 use crate::color::{Rgb, kelvin_to_rgb};
-use crate::command::CommandReceiver;
 use crate::effect::{EffectProcessor, EffectProcessorConfig};
 use crate::mode::{ModeId, ModeSlot};
-use crate::operation::OperationStack;
-use crate::{Command, LedDriver, Operation};
+use crate::operation::{Operation, OperationStack};
 
 const DEFAULT_FPS: u32 = 90;
 const DEFAULT_FRAME_DURATION_MS: u64 = 1000 / DEFAULT_FPS as u64;
@@ -49,11 +50,33 @@ pub struct LightEngineConfig {
     pub color: Rgb,
 }
 
+/// Represents a user intent to change the light state.
+#[derive(Debug, Clone)]
+pub struct LightIntent {
+    pub power: Option<bool>,
+    pub brightness: Option<u8>,
+    pub color: Option<Rgb>,
+    pub color_temperature: Option<u16>,
+    pub mode_id: Option<ModeId>,
+}
+
+const INTENT_CHANNEL_SIZE: usize = 4;
+
+/// Type alias for intent sender
+pub type IntentSender = Sender<'static, CriticalSectionRawMutex, LightIntent, INTENT_CHANNEL_SIZE>;
+
+/// Type alias for intent receiver  
+pub type IntentReceiver =
+    Receiver<'static, CriticalSectionRawMutex, LightIntent, INTENT_CHANNEL_SIZE>;
+
+/// Type alias for the intent channel
+pub type IntentChannel = Channel<CriticalSectionRawMutex, LightIntent, INTENT_CHANNEL_SIZE>;
+
 /// Light Engine - the main orchestrator
 pub struct LightEngine<D: LedDriver, const N: usize> {
     // External dependencies and configuration
     driver: D,
-    commands: CommandReceiver,
+    intents: IntentReceiver,
     timings: TransitionTimings,
 
     // Internal state
@@ -69,11 +92,11 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
     /// Create a new light engine with command channel
     ///
     /// Returns the engine and a sender for commands.
-    pub fn new(driver: D, commands: CommandReceiver, config: &LightEngineConfig) -> Self {
+    pub fn new(driver: D, intents: IntentReceiver, config: &LightEngineConfig) -> Self {
         let now = Instant::now();
         Self {
             driver,
-            commands,
+            intents,
             timings: config.timings,
             state: LightState {
                 color: config.color,
@@ -100,7 +123,7 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
         }
         self.next_frame += DEFAULT_FRAME_DURATION;
 
-        self.process_commands();
+        self.process_intents();
         self.process_operations(now);
 
         self.effects.tick(now);
@@ -112,25 +135,29 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
     }
 
     /// Process pending commands from the channel (non-blocking)
-    fn process_commands(&mut self) {
-        while let Ok(cmd) = self.commands.try_receive() {
-            let _result = match cmd {
-                Command::SetBrightness(brightness) => self.stack.push_brightness(brightness),
-                Command::SwitchMode(mode) => self.stack.push_mode(mode, self.state.brightness),
-                Command::SetColor(color) => self.stack.push_color(color),
-                Command::SetColorTemperature(color_temp) => {
-                    let color = kelvin_to_rgb(color_temp);
-                    self.stack.push_color(color)
+    fn process_intents(&mut self) {
+        while let Ok(intent) = self.intents.try_receive() {
+            if let Some(mode_id) = intent.mode_id {
+                let _ = self.stack.push_mode(mode_id, self.state.brightness);
+            }
+
+            if let Some(brightness) = intent.brightness {
+                let _ = self.stack.push_brightness(brightness);
+            }
+
+            if let Some(color) = intent.color {
+                let _ = self.stack.push_color(color);
+            } else if let Some(temp_kelvin) = intent.color_temperature {
+                let color = kelvin_to_rgb(temp_kelvin);
+                let _ = self.stack.push_color(color);
+            }
+
+            if let Some(power) = intent.power {
+                if power {
+                    let _ = self.stack.push_power_on();
+                } else {
+                    let _ = self.stack.push_power_off();
                 }
-                Command::PowerOff => self.stack.push_power_off(),
-                Command::PowerOn => self.stack.push_power_on(),
-            };
-            #[cfg(feature = "log")]
-            if let Err(operation) = _result {
-                println!(
-                    "[light-engine.process_commands] error pushing operation: stack is full, dropping operation: {:?}",
-                    operation
-                );
             }
         }
     }
@@ -153,7 +180,9 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
                     .set_color(color, self.timings.color_change, now);
             }
             Operation::PowerOff => {
-                self.effects.brightness.set_uncorrected(0, self.timings.brightness, now);
+                self.effects
+                    .brightness
+                    .set_uncorrected(0, self.timings.brightness, now);
             }
             Operation::PowerOn => {
                 self.effects
