@@ -7,7 +7,7 @@ mod color_correction;
 
 pub(crate) trait Effect {
     /// Apply the effect to a frame
-    fn apply<const N: usize>(&mut self, frame: &mut [Rgb; N]);
+    fn apply(&mut self, frame: &mut [Rgb]);
 
     fn tick(&mut self, _now: Instant) {}
 }
@@ -48,7 +48,7 @@ impl EffectProcessor {
     }
 
     /// Apply all processing to a frame
-    pub(crate) fn apply<const N: usize>(&mut self, frame: &mut [Rgb; N]) {
+    pub(crate) fn apply(&mut self, frame: &mut [Rgb]) {
         if let Some(color_correction) = &mut self.color_correction {
             color_correction.apply(frame);
         }

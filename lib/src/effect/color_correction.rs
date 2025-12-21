@@ -30,7 +30,7 @@ impl ColorCorrection {
 }
 
 impl Effect for ColorCorrection {
-    fn apply<const N: usize>(&mut self, frame: &mut [Rgb; N]) {
+    fn apply(&mut self, frame: &mut [Rgb]) {
         if !self.is_active() {
             return;
         }

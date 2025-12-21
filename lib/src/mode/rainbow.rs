@@ -9,6 +9,7 @@ use embassy_time::{Duration, Instant};
 
 use super::Mode;
 use crate::color::{Hsv, Rgb, fill_gradient_three_fp, mirror_half};
+use crate::bounds::center_of;
 
 const DEFAULT_CYCLE_MS: u64 = 12_000;
 const HUE_STEP: u8 = 60;
@@ -70,10 +71,9 @@ impl RainbowMode {
 }
 
 impl Mode for RainbowMode {
-    fn render<const N: usize>(&mut self, now: Instant) -> [Rgb; N] {
-        let mut leds = [Rgb::default(); N];
-        if N == 0 {
-            return leds;
+    fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
+        if leds.is_empty() {
+            return;
         }
 
         let cycle_ms = self.cycle_duration.as_millis().max(1);
@@ -97,21 +97,15 @@ impl Mode for RainbowMode {
             val: self.value,
         };
 
-        // Compute center for mirroring
-        let mut center_len = N / 2;
-        if !N.is_multiple_of(2) {
-            center_len += 1;
-        }
-        center_len = min(center_len, N);
+        let center_len = center_of(leds);
 
         // Fill first half with three-point gradient using fixed-point math
         {
-            let (first_half, _) = leds.split_at_mut(center_len);
+            let (first_half, _) = leds.split_at_mut(center_len as usize);
             fill_gradient_three_fp(first_half, c1, c2, c3);
         }
 
         // Mirror to second half
-        mirror_half(&mut leds);
-        leds
+        mirror_half(leds);
     }
 }

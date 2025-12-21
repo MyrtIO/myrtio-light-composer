@@ -24,7 +24,7 @@ const MODE_ID_VELVET_ANALOG: u8 = 2;
 
 pub trait Mode {
     /// Render a single frame
-    fn render<const N: usize>(&mut self, now: Instant) -> [Rgb; N];
+    fn render(&mut self, now: Instant, leds: &mut [Rgb]);
 
     /// Reset mode state
     fn reset(&mut self) {}
@@ -99,12 +99,12 @@ impl ModeId {
 
 impl ModeSlot {
     /// Render the current mode
-    pub fn render<const N: usize>(&mut self, frame_time: Instant) -> [Rgb; N] {
+    pub fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         match self {
-            Self::Rainbow(mode) => mode.render(frame_time),
-            Self::Static(mode) => mode.render(frame_time),
-            Self::VelvetAnalog(mode) => mode.render(frame_time),
-        }
+            Self::Rainbow(mode) => mode.render(now, leds),
+            Self::Static(mode) => mode.render(now, leds),
+            Self::VelvetAnalog(mode) => mode.render(now, leds),
+        };
     }
 
     /// Reset the mode state

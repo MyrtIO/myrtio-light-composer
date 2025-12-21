@@ -50,15 +50,15 @@ impl VelvetAnalogMode {
         blend8(BREATHE_MIN_SCALE, BREATHE_MAX_SCALE, e)
     }
 
-    fn midpoint<const N: usize>(&self, now: Instant) -> usize {
-        if N <= 1 {
+    fn midpoint(&self, now: Instant, leds: &mut [Rgb]) -> usize {
+        if leds.len() <= 1 {
             return 0;
         }
 
-        let last = N - 1;
+        let last = leds.len() - 1;
 
         // Drift range: keep subtle (few pixels) and safe for small strips.
-        let range = core::cmp::min(12usize, core::cmp::max(1usize, N / 10));
+        let range = core::cmp::min(12usize, core::cmp::max(1usize, leds.len() / 10));
 
         let period_ms = self.drift_period.as_millis().max(1);
         let progress_ms = now.as_millis() % period_ms;
@@ -71,7 +71,7 @@ impl VelvetAnalogMode {
         let e = ease_in_out_quad(tri2); // 0..255..0
 
         let offset: i16 = (i16::from(e) - 128) * (range as i16) / 128;
-        let base_mid: i16 = (N / 2) as i16;
+        let base_mid: i16 = (leds.len() / 2) as i16;
 
         let mid = (base_mid + offset).clamp(0, last as i16) as usize;
         mid
@@ -104,27 +104,24 @@ impl VelvetAnalogMode {
 }
 
 impl Mode for VelvetAnalogMode {
-    fn render<const N: usize>(&mut self, now: Instant) -> [Rgb; N] {
+    fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         self.color.tick(now);
         let rgb = self.color.current();
 
-        if N <= 1 {
-            return [rgb; N];
+        if leds.is_empty() {
+            return;
         }
-
-        let mut leds = [Rgb::default(); N];
 
         let breathe = self.breathe_scale(now);
         let anchor = rgb2hsv(rgb);
         let (c1, c2, c3) = Self::palette_from_anchor(anchor, breathe);
 
-        let last = N - 1;
-        let mid = self.midpoint::<N>(now);
+        let last = leds.len() - 1;
+        let mid = self.midpoint(now, leds);
 
-        fill_gradient_fp(&mut leds, 0, c1, mid, c2, GradientDirection::Shortest);
-        fill_gradient_fp(&mut leds, mid, c2, last, c3, GradientDirection::Shortest);
+        fill_gradient_fp(leds, 0, c1, mid, c2, GradientDirection::Shortest);
+        fill_gradient_fp(leds, mid, c2, last, c3, GradientDirection::Shortest);
 
-        leds
     }
 
     fn is_transitioning(&self) -> bool {

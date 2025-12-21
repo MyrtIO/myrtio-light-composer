@@ -37,10 +37,12 @@ impl StaticColorMode {
 }
 
 impl Mode for StaticColorMode {
-    fn render<const N: usize>(&mut self, frame_time: Instant) -> [Rgb; N] {
-        self.color.tick(frame_time);
+    fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
+        self.color.tick(now);
 
-        [self.color.current(); N]
+        for led in leds {
+            *led = self.color.current();
+        }
     }
 
     fn is_transitioning(&self) -> bool {

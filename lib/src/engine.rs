@@ -5,6 +5,7 @@ use embassy_time::{Duration, Instant, Timer};
 #[cfg(feature = "log")]
 use esp_println::println;
 
+use crate::bounds::{bounded, RenderingBounds};
 use crate::LedDriver;
 use crate::color::{Rgb, kelvin_to_rgb};
 use crate::effect::{EffectProcessor, EffectProcessorConfig};
@@ -44,6 +45,7 @@ struct LightState {
 #[derive(Clone)]
 pub struct LightEngineConfig {
     pub mode: ModeId,
+    pub bounds: RenderingBounds,
     pub effects: EffectProcessorConfig,
     pub timings: TransitionTimings,
     pub brightness: u8,
@@ -78,6 +80,7 @@ pub struct LightEngine<D: LedDriver, const N: usize> {
     driver: D,
     intents: IntentReceiver,
     timings: TransitionTimings,
+    bounds: RenderingBounds,
 
     // Internal state
     state: LightState,
@@ -98,6 +101,7 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
             driver,
             intents,
             timings: config.timings,
+            bounds: config.bounds,
             state: LightState {
                 color: config.color,
                 current_mode: config.mode.to_mode_slot(config.color),
@@ -127,8 +131,12 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
         self.process_operations(now);
 
         self.effects.tick(now);
-        let mut frame: [Rgb; N] = self.state.current_mode.render(now);
-        self.effects.apply(&mut frame);
+
+        let mut frame = [Rgb::default(); N];
+        let leds = bounded(&mut frame, self.bounds);
+
+        self.state.current_mode.render(now, leds);
+        self.effects.apply(leds);
 
         Timer::at(self.next_frame).await;
         self.driver.write(&frame);

@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use embassy_time::Instant;
+
 pub mod color;
 pub mod effect;
 pub mod engine;
@@ -9,6 +11,7 @@ pub mod math8;
 pub mod mode;
 pub mod operation;
 pub mod transition;
+pub mod bounds;
 
 pub use effect::EffectProcessorConfig;
 pub use engine::{
@@ -28,5 +31,5 @@ pub use math8::{U8Adjuster, ease_in_out_quad};
 /// The light engine is generic over this trait.
 pub trait LedDriver {
     /// Write colors to the LED strip
-    fn write<const N: usize>(&mut self, colors: &[Rgb; N]);
+    fn write(&mut self, colors: &[Rgb]);
 }

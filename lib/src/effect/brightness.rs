@@ -76,7 +76,7 @@ impl BrightnessEffect {
 }
 
 impl Effect for BrightnessEffect {
-    fn apply<const N: usize>(&mut self, frame: &mut [Rgb; N]) {
+    fn apply(&mut self, frame: &mut [Rgb]) {
         let mut current = self.brightness.current();
 
         if current == 255 {
