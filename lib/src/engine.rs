@@ -5,10 +5,10 @@ use embassy_time::{Duration, Instant, Timer};
 #[cfg(feature = "log")]
 use esp_println::println;
 
-use crate::bounds::{bounded, RenderingBounds};
 use crate::LedDriver;
+use crate::bounds::{RenderingBounds, bounded};
 use crate::color::{Rgb, kelvin_to_rgb};
-use crate::effect::{EffectProcessor, EffectProcessorConfig};
+use crate::effect::{ColorCorrection, EffectProcessor, EffectProcessorConfig};
 use crate::mode::{ModeId, ModeSlot};
 use crate::operation::{Operation, OperationStack};
 
@@ -54,12 +54,20 @@ pub struct LightEngineConfig {
 
 /// Represents a user intent to change the light state.
 #[derive(Debug, Clone)]
-pub struct LightIntent {
+pub struct LightStateIntent {
     pub power: Option<bool>,
     pub brightness: Option<u8>,
     pub color: Option<Rgb>,
     pub color_temperature: Option<u16>,
     pub mode_id: Option<ModeId>,
+}
+
+pub enum LightIntent {
+    StateChange(LightStateIntent),
+    BoundsChange(RenderingBounds),
+    ColorCorrectionChange(Rgb),
+    MinimalBrightnessChange(u8),
+    BrightnessScaleChange(u8),
 }
 
 const INTENT_CHANNEL_SIZE: usize = 4;
@@ -145,26 +153,42 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
     /// Process pending commands from the channel (non-blocking)
     fn process_intents(&mut self) {
         while let Ok(intent) = self.intents.try_receive() {
-            if let Some(mode_id) = intent.mode_id {
-                let _ = self.stack.push_mode(mode_id, self.state.brightness);
-            }
+            match intent {
+                LightIntent::StateChange(intent) => {
+                    if let Some(mode_id) = intent.mode_id {
+                        let _ = self.stack.push_mode(mode_id, self.state.brightness);
+                    }
 
-            if let Some(brightness) = intent.brightness {
-                let _ = self.stack.push_brightness(brightness);
-            }
+                    if let Some(brightness) = intent.brightness {
+                        let _ = self.stack.push_brightness(brightness);
+                    }
 
-            if let Some(color) = intent.color {
-                let _ = self.stack.push_color(color);
-            } else if let Some(temp_kelvin) = intent.color_temperature {
-                let color = kelvin_to_rgb(temp_kelvin);
-                let _ = self.stack.push_color(color);
-            }
+                    if let Some(color) = intent.color {
+                        let _ = self.stack.push_color(color);
+                    } else if let Some(temp_kelvin) = intent.color_temperature {
+                        let color = kelvin_to_rgb(temp_kelvin);
+                        let _ = self.stack.push_color(color);
+                    }
 
-            if let Some(power) = intent.power {
-                if power {
-                    let _ = self.stack.push_power_on();
-                } else {
-                    let _ = self.stack.push_power_off();
+                    if let Some(power) = intent.power {
+                        if power {
+                            let _ = self.stack.push_power_on();
+                        } else {
+                            let _ = self.stack.push_power_off();
+                        }
+                    }
+                }
+                LightIntent::BoundsChange(bounds) => {
+                    self.bounds = bounds;
+                }
+                LightIntent::ColorCorrectionChange(color_correction) => {
+                    self.effects.color_correction = Some(ColorCorrection::new(color_correction));
+                }
+                LightIntent::MinimalBrightnessChange(brightness) => {
+                    self.effects.brightness.set_min_brightness(brightness);
+                }
+                LightIntent::BrightnessScaleChange(scale) => {
+                    self.effects.brightness.set_scale(scale);
                 }
             }
         }

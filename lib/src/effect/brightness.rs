@@ -73,6 +73,14 @@ impl BrightnessEffect {
     pub(crate) const fn is_transitioning(&self) -> bool {
         self.brightness.is_transitioning()
     }
+
+    pub(crate) fn set_scale(&mut self, scale: u8) {
+        self.scale = scale;
+    }
+
+    pub(crate) fn set_min_brightness(&mut self, min_brightness: u8) {
+        self.min_brightness = min_brightness;
+    }
 }
 
 impl Effect for BrightnessEffect {

@@ -14,7 +14,7 @@ pub(crate) trait Effect {
 
 use brightness::BrightnessEffect;
 pub use brightness::BrightnessEffectConfig;
-use color_correction::ColorCorrection;
+pub(crate) use color_correction::ColorCorrection;
 
 #[derive(Debug, Clone)]
 pub struct EffectProcessorConfig {

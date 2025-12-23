@@ -27,6 +27,10 @@ impl ColorCorrection {
     pub(crate) const fn is_active(self) -> bool {
         self.factors.r != 255 || self.factors.g != 255 || self.factors.b != 255
     }
+
+    pub(crate) fn set(&mut self, factors: Rgb) {
+        self.factors = factors;
+    }
 }
 
 impl Effect for ColorCorrection {
