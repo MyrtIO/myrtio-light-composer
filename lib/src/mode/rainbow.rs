@@ -4,7 +4,6 @@
 //! - `RainbowEffect`: Uses fixed-point HSV gradient algorithm (ported from `FastLED`)
 //! - `RainbowFlowEffect`: Three-point mirrored gradient with smooth flow
 
-use core::cmp::min;
 use embassy_time::{Duration, Instant};
 
 use super::Mode;
@@ -101,7 +100,7 @@ impl Mode for RainbowMode {
 
         // Fill first half with three-point gradient using fixed-point math
         {
-            let (first_half, _) = leds.split_at_mut(center_len as usize);
+            let (first_half, _) = leds.split_at_mut(center_len);
             fill_gradient_three_fp(first_half, c1, c2, c3);
         }
 

@@ -70,23 +70,22 @@ pub enum LightIntent {
     BrightnessScaleChange(u8),
 }
 
-const INTENT_CHANNEL_SIZE: usize = 4;
-
 /// Type alias for intent sender
-pub type IntentSender = Sender<'static, CriticalSectionRawMutex, LightIntent, INTENT_CHANNEL_SIZE>;
+pub type IntentSender<const SIZE: usize> =
+    Sender<'static, CriticalSectionRawMutex, LightIntent, SIZE>;
 
 /// Type alias for intent receiver  
-pub type IntentReceiver =
-    Receiver<'static, CriticalSectionRawMutex, LightIntent, INTENT_CHANNEL_SIZE>;
+pub type IntentReceiver<const SIZE: usize> =
+    Receiver<'static, CriticalSectionRawMutex, LightIntent, SIZE>;
 
 /// Type alias for the intent channel
-pub type IntentChannel = Channel<CriticalSectionRawMutex, LightIntent, INTENT_CHANNEL_SIZE>;
+pub type IntentChannel<const SIZE: usize> = Channel<CriticalSectionRawMutex, LightIntent, SIZE>;
 
 /// Light Engine - the main orchestrator
-pub struct LightEngine<D: LedDriver, const N: usize> {
+pub struct LightEngine<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize> {
     // External dependencies and configuration
     driver: D,
-    intents: IntentReceiver,
+    intents: IntentReceiver<INTENT_CHANNEL_SIZE>,
     timings: TransitionTimings,
     bounds: RenderingBounds,
 
@@ -99,11 +98,17 @@ pub struct LightEngine<D: LedDriver, const N: usize> {
     effects: EffectProcessor,
 }
 
-impl<D: LedDriver, const N: usize> LightEngine<D, N> {
+impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
+    LightEngine<D, MAX_LEDS, INTENT_CHANNEL_SIZE>
+{
     /// Create a new light engine with command channel
     ///
     /// Returns the engine and a sender for commands.
-    pub fn new(driver: D, intents: IntentReceiver, config: &LightEngineConfig) -> Self {
+    pub fn new(
+        driver: D,
+        intents: IntentReceiver<INTENT_CHANNEL_SIZE>,
+        config: &LightEngineConfig,
+    ) -> Self {
         let now = Instant::now();
         Self {
             driver,
@@ -140,7 +145,7 @@ impl<D: LedDriver, const N: usize> LightEngine<D, N> {
 
         self.effects.tick(now);
 
-        let mut frame = [Rgb::default(); N];
+        let mut frame = [Rgb::default(); MAX_LEDS];
         let leds = bounded(&mut frame, self.bounds);
 
         self.state.current_mode.render(now, leds);
