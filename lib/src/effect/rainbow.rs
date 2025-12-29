@@ -6,7 +6,7 @@
 
 use embassy_time::{Duration, Instant};
 
-use super::Mode;
+use super::Effect;
 use crate::color::{Hsv, Rgb, fill_gradient_three_fp, mirror_half};
 use crate::bounds::center_of;
 
@@ -18,7 +18,7 @@ const HUE_STEP: u8 = 60;
 /// This implementation is ported from the `FastLED` `fillGradient` function
 /// and uses 8.24 fixed-point arithmetic for smooth color transitions.
 #[derive(Debug, Clone)]
-pub struct RainbowMode {
+pub struct RainbowEffect {
     /// Duration of one complete rainbow cycle
     cycle_duration: Duration,
     /// Brightness value (0-255)
@@ -27,7 +27,7 @@ pub struct RainbowMode {
     saturation: u8,
 }
 
-impl Default for RainbowMode {
+impl Default for RainbowEffect {
     fn default() -> Self {
         Self {
             cycle_duration: Duration::from_millis(DEFAULT_CYCLE_MS),
@@ -37,7 +37,7 @@ impl Default for RainbowMode {
     }
 }
 
-impl RainbowMode {
+impl RainbowEffect {
     /// Create a new rainbow mode with custom parameters
     pub fn new(cycle_duration: Duration, value: u8, saturation: u8) -> Self {
         Self {
@@ -69,7 +69,7 @@ impl RainbowMode {
     }
 }
 
-impl Mode for RainbowMode {
+impl Effect for RainbowEffect {
     fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         if leds.is_empty() {
             return;

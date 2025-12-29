@@ -8,8 +8,8 @@ use esp_println::println;
 use crate::LedDriver;
 use crate::bounds::{RenderingBounds, bounded};
 use crate::color::{Rgb, kelvin_to_rgb};
-use crate::effect::{ColorCorrection, EffectProcessor, EffectProcessorConfig};
-use crate::mode::{ModeId, ModeSlot};
+use crate::filter::{ColorCorrection, FilterProcessor, FilterProcessorConfig};
+use crate::effect::{EffectId, EffectSlot};
 use crate::operation::{Operation, OperationStack};
 
 const DEFAULT_FPS: u32 = 90;
@@ -36,17 +36,16 @@ pub struct TransitionTimings {
 #[derive(Debug, Clone)]
 struct LightState {
     color: Rgb,
-    current_mode: ModeSlot,
-    pending_mode: Option<ModeSlot>,
+    current_effect: EffectSlot,
     brightness: u8,
 }
 
 /// Configuration for the light engine
 #[derive(Clone)]
 pub struct LightEngineConfig {
-    pub mode: ModeId,
+    pub effect: EffectId,
     pub bounds: RenderingBounds,
-    pub effects: EffectProcessorConfig,
+    pub filters: FilterProcessorConfig,
     pub timings: TransitionTimings,
     pub brightness: u8,
     pub color: Rgb,
@@ -59,7 +58,7 @@ pub struct LightStateIntent {
     pub brightness: Option<u8>,
     pub color: Option<Rgb>,
     pub color_temperature: Option<u16>,
-    pub mode_id: Option<ModeId>,
+    pub effect_id: Option<EffectId>,
 }
 
 pub enum LightIntent {
@@ -95,7 +94,7 @@ pub struct LightEngine<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL
     stack: OperationStack<10>,
 
     // Internal dependencies
-    effects: EffectProcessor,
+    filters: FilterProcessor,
 }
 
 impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
@@ -117,13 +116,12 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
             bounds: config.bounds,
             state: LightState {
                 color: config.color,
-                current_mode: config.mode.to_mode_slot(config.color),
-                pending_mode: None,
+                current_effect: config.effect.to_slot(config.color),
                 brightness: config.brightness,
             },
             next_frame: now,
             stack: OperationStack::new(),
-            effects: EffectProcessor::new(&config.effects),
+            filters: FilterProcessor::new(&config.filters),
         }
     }
 
@@ -143,13 +141,13 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         self.process_intents();
         self.process_operations(now);
 
-        self.effects.tick(now);
+        self.filters.tick(now);
 
         let mut frame = [Rgb::default(); MAX_LEDS];
         let leds = bounded(&mut frame, self.bounds);
 
-        self.state.current_mode.render(now, leds);
-        self.effects.apply(leds);
+        self.state.current_effect.render(now, leds);
+        self.filters.apply(leds);
 
         Timer::at(self.next_frame).await;
         self.driver.write(&frame);
@@ -160,7 +158,7 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         while let Ok(intent) = self.intents.try_receive() {
             match intent {
                 LightIntent::StateChange(intent) => {
-                    if let Some(mode_id) = intent.mode_id {
+                    if let Some(mode_id) = intent.effect_id {
                         let _ = self.stack.push_mode(mode_id, self.state.brightness);
                     }
 
@@ -187,13 +185,13 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
                     self.bounds = bounds;
                 }
                 LightIntent::ColorCorrectionChange(color_correction) => {
-                    self.effects.color_correction = Some(ColorCorrection::new(color_correction));
+                    self.filters.color_correction = Some(ColorCorrection::new(color_correction));
                 }
                 LightIntent::MinimalBrightnessChange(brightness) => {
-                    self.effects.brightness.set_min_brightness(brightness);
+                    self.filters.brightness.set_min_brightness(brightness);
                 }
                 LightIntent::BrightnessScaleChange(scale) => {
-                    self.effects.brightness.set_scale(scale);
+                    self.filters.brightness.set_scale(scale);
                 }
             }
         }
@@ -207,26 +205,26 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         // Start the transition for the current operation
         match next {
             Operation::SetBrightness(brightness) => {
-                self.effects
+                self.filters
                     .brightness
                     .set(brightness, self.timings.brightness, now);
             }
             Operation::SetColor(color) => {
                 self.state
-                    .current_mode
+                    .current_effect
                     .set_color(color, self.timings.color_change, now);
             }
             Operation::PowerOff => {
-                self.effects
+                self.filters
                     .brightness
                     .set_uncorrected(0, self.timings.brightness, now);
             }
             Operation::PowerOn => {
-                self.effects
+                self.filters
                     .brightness
                     .set(self.state.brightness, self.timings.brightness, now);
             }
-            Operation::SwitchMode(_mode) => {
+            Operation::SwitchEffect(_mode) => {
                 // This command changes instantly
             }
         }
@@ -239,10 +237,10 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         let current = self.stack.current()?;
         let is_complete = match current {
             Operation::SetBrightness(_) | Operation::PowerOff | Operation::PowerOn => {
-                !self.effects.brightness.is_transitioning()
+                !self.filters.brightness.is_transitioning()
             }
-            Operation::SetColor(_) => !self.state.current_mode.is_transitioning(),
-            Operation::SwitchMode(_) => true,
+            Operation::SetColor(_) => !self.state.current_effect.is_transitioning(),
+            Operation::SwitchEffect(_) => true,
         };
         if !is_complete {
             return None;
@@ -255,8 +253,8 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
             Operation::SetColor(color) => {
                 self.state.color = color;
             }
-            Operation::SwitchMode(mode) => {
-                self.set_mode(mode);
+            Operation::SwitchEffect(mode) => {
+                self.set_effect(mode);
             }
             Operation::PowerOff | Operation::PowerOn => {
                 // This commands does not change the state
@@ -266,10 +264,8 @@ impl<D: LedDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         self.stack.pop()
     }
 
-    fn set_mode(&mut self, mode: ModeId) {
-        let slot = mode.to_mode_slot(self.state.color);
-        self.state.current_mode = slot;
-        self.state.current_mode.reset();
-        self.state.pending_mode = None;
+    fn set_effect(&mut self, effect: EffectId) {
+        self.state.current_effect = effect.to_slot(self.state.color);
+        self.state.current_effect.reset();
     }
 }

@@ -1,7 +1,7 @@
 use heapless::Deque;
 
 use crate::color::Rgb;
-use crate::mode::ModeId;
+use crate::effect::EffectId;
 
 /// Operations that can be performed on the light engine
 ///
@@ -11,7 +11,7 @@ pub enum Operation {
     /// Set brightness
     SetBrightness(u8),
     /// Switch to a new mode with fade transition
-    SwitchMode(ModeId),
+    SwitchEffect(EffectId),
     /// Update effect color
     SetColor(Rgb),
     /// Power off the light (fade out to 0, but preserve target brightness).
@@ -74,9 +74,9 @@ impl<const N: usize> OperationStack<N> {
     }
 
     /// Push a mode operation onto the stack
-    pub fn push_mode(&mut self, mode: ModeId, brightness: u8) -> Result<(), Operation> {
+    pub fn push_mode(&mut self, mode: EffectId, brightness: u8) -> Result<(), Operation> {
         let free_slots = self.inner.capacity() - self.inner.len();
-        let mode_op = Operation::SwitchMode(mode);
+        let mode_op = Operation::SwitchEffect(mode);
         if free_slots < 3 {
             return Err(mode_op);
         }

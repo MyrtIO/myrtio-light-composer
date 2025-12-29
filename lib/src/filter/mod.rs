@@ -1,0 +1,65 @@
+use embassy_time::Instant;
+
+use crate::color::Rgb;
+
+mod brightness;
+mod color_correction;
+
+pub(crate) trait Filter {
+    /// Apply the effect to a frame
+    fn apply(&mut self, frame: &mut [Rgb]);
+
+    fn tick(&mut self, _now: Instant) {}
+}
+
+use brightness::BrightnessFilter;
+pub use brightness::BrightnessFilterConfig;
+pub(crate) use color_correction::ColorCorrection;
+
+#[derive(Debug, Clone)]
+pub struct FilterProcessorConfig {
+    /// Brightness filter
+    pub brightness: BrightnessFilterConfig,
+    /// Color correction
+    pub color_correction: Option<Rgb>,
+}
+
+/// Filter processor - applies post-processing to frames
+///
+/// This is the central hub for all output modifications.
+/// Processing is applied in a specific order to ensure correct results.
+#[derive(Debug)]
+pub(crate) struct FilterProcessor {
+    /// Brightness filter
+    pub brightness: BrightnessFilter,
+    /// Color correction filter
+    pub color_correction: Option<ColorCorrection>,
+}
+
+impl FilterProcessor {
+    /// Create a new output processor with default settings
+    pub(crate) fn new(config: &FilterProcessorConfig) -> Self {
+        let brightness = BrightnessFilter::new(0, &config.brightness);
+        let color_correction = config.color_correction.map(ColorCorrection::new);
+        Self {
+            brightness,
+            color_correction,
+        }
+    }
+
+    /// Apply all processing to a frame
+    pub(crate) fn apply(&mut self, frame: &mut [Rgb]) {
+        if let Some(color_correction) = &mut self.color_correction {
+            color_correction.apply(frame);
+        }
+        self.brightness.apply(frame);
+    }
+
+    /// Tick the filters
+    pub(crate) fn tick(&mut self, now: Instant) {
+        self.brightness.tick(now);
+        if let Some(color_correction) = &mut self.color_correction {
+            color_correction.tick(now);
+        }
+    }
+}

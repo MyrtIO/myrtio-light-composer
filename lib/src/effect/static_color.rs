@@ -5,7 +5,7 @@
 
 use embassy_time::{Duration, Instant};
 
-use super::Mode;
+use super::Effect;
 use crate::color::Rgb;
 use crate::transition::ValueTransition;
 
@@ -13,12 +13,12 @@ use crate::transition::ValueTransition;
 ///
 /// Supports smooth crossfade transitions when changing colors.
 #[derive(Debug, Clone)]
-pub struct StaticColorMode {
+pub struct StaticColorEffect {
     /// Color with transition support
     color: ValueTransition<Rgb>,
 }
 
-impl StaticColorMode {
+impl StaticColorEffect {
     /// Create a new static color effect
     pub fn new(color: Rgb) -> Self {
         Self {
@@ -36,7 +36,7 @@ impl StaticColorMode {
     }
 }
 
-impl Mode for StaticColorMode {
+impl Effect for StaticColorEffect {
     fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         self.color.tick(now);
 

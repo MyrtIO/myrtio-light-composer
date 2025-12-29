@@ -1,25 +1,23 @@
 #![no_std]
 #![no_main]
 
-use embassy_time::Instant;
-
 pub mod color;
-pub mod effect;
+pub mod filter;
 pub mod engine;
 pub mod gamma;
 pub mod math8;
-pub mod mode;
+pub mod effect;
 pub mod operation;
 pub mod transition;
 pub mod bounds;
 
-pub use effect::EffectProcessorConfig;
+pub use filter::FilterProcessorConfig;
 pub use engine::{
     IntentChannel, IntentReceiver, IntentSender, LightEngine, LightEngineConfig, LightIntent,
     TransitionTimings,
 };
 pub use gamma::ws2812_lut;
-pub use mode::{ModeId, ModeSlot};
+pub use effect::{EffectId, EffectSlot};
 pub use operation::{Operation, OperationStack};
 
 pub use color::{Hsv, Rgb};

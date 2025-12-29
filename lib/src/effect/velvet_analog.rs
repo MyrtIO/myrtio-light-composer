@@ -5,7 +5,7 @@
 
 use embassy_time::{Duration, Instant};
 
-use super::Mode;
+use super::Effect;
 use crate::color::{fill_gradient_fp, rgb2hsv, GradientDirection, Hsv, Rgb};
 use crate::math8::{blend8, ease_in_out_quad, scale8};
 use crate::transition::ValueTransition;
@@ -21,13 +21,13 @@ const BREATHE_MIN_SCALE: u8 = 235;
 const BREATHE_MAX_SCALE: u8 = 255;
 
 #[derive(Debug, Clone)]
-pub struct VelvetAnalogMode {
+pub struct VelvetAnalogEffect {
     color: ValueTransition<Rgb>,
     breathe_period: Duration,
     drift_period: Duration,
 }
 
-impl VelvetAnalogMode {
+impl VelvetAnalogEffect {
     pub fn new(color: Rgb) -> Self {
         Self {
             color: ValueTransition::new_rgb(color),
@@ -103,7 +103,7 @@ impl VelvetAnalogMode {
     }
 }
 
-impl Mode for VelvetAnalogMode {
+impl Effect for VelvetAnalogEffect {
     fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         self.color.tick(now);
         let rgb = self.color.current();

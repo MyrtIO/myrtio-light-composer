@@ -1,14 +1,13 @@
-//! Color correction effect
+//! Color correction filter
 //!
-//! Applies multiplicative color correction to each RGB channel.
-//! Used for white balance and color temperature adjustments.
+//! Applies per-channel multiplicative scaling to correct color output.
 
 use crate::color::Rgb;
 use crate::math8::scale8;
 
-use super::Effect;
+use super::Filter;
 
-/// Color correction effect
+/// Color correction filter
 ///
 /// Applies per-channel multiplicative scaling to correct color output.
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +28,7 @@ impl ColorCorrection {
     }
 }
 
-impl Effect for ColorCorrection {
+impl Filter for ColorCorrection {
     fn apply(&mut self, frame: &mut [Rgb]) {
         if !self.is_active() {
             return;

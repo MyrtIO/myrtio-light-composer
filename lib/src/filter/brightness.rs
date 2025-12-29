@@ -12,16 +12,16 @@ use embassy_time::{Duration, Instant};
 #[cfg(feature = "log")]
 use esp_println::println;
 
-use super::Effect;
+use super::Filter;
 use crate::{
     color::Rgb,
     math8::{U8Adjuster, scale8},
     transition::ValueTransition,
 };
 
-/// Configuration for the brightness effect
+/// Configuration for the brightness filter
 #[derive(Debug, Clone)]
-pub struct BrightnessEffectConfig {
+pub struct BrightnessFilterConfig {
     /// Minimum brightness
     pub min_brightness: u8,
     /// Scale factor (0-255 = 0.0-1.0)
@@ -32,7 +32,7 @@ pub struct BrightnessEffectConfig {
 
 /// Brightness transition and correction
 #[derive(Debug, Clone)]
-pub(crate) struct BrightnessEffect {
+pub(crate) struct BrightnessFilter {
     /// Scale factor (0-255 = 0.0-1.0)
     min_brightness: u8,
     scale: u8,
@@ -41,9 +41,9 @@ pub(crate) struct BrightnessEffect {
     brightness: ValueTransition<u8>,
 }
 
-impl BrightnessEffect {
+impl BrightnessFilter {
     /// Create a new brightness effect
-    pub(crate) const fn new(brightness: u8, config: &BrightnessEffectConfig) -> Self {
+    pub(crate) const fn new(brightness: u8, config: &BrightnessFilterConfig) -> Self {
         Self {
             min_brightness: config.min_brightness,
             scale: config.scale,
@@ -83,7 +83,7 @@ impl BrightnessEffect {
     }
 }
 
-impl Effect for BrightnessEffect {
+impl Filter for BrightnessFilter {
     fn apply(&mut self, frame: &mut [Rgb]) {
         let mut current = self.brightness.current();
 
