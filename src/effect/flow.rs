@@ -4,67 +4,38 @@ use embassy_time::Instant;
 
 use super::Effect;
 use crate::{
-    color::{Rgb, blend_colors},
+    color::{Rgb, blend_colors, rgb_from_u32},
     math8::{blend8, ease_in_out_quad, scale8},
 };
 
+/// Create a palette from a list of hex colors (0xRRGGBB format)
+macro_rules! hex_palette {
+    ($($color:expr),*) => {
+        [
+            $(rgb_from_u32($color)),*
+        ]
+    };
+}
+
 // Aurora palette: cool blue/teal/violet tones
-const AURORA_PALETTE: [Rgb; 6] = [
-    Rgb {
-        r: 0,
-        g: 46,
-        b: 184,
-    }, // Deep blue
-    Rgb {
-        r: 0,
-        g: 255,
-        b: 212,
-    }, // Teal (stronger)
-    Rgb {
-        r: 20,
-        g: 255,
-        b: 120,
-    }, // Green (muted/teal-leaning)
-    Rgb {
-        r: 0,
-        g: 200,
-        b: 255,
-    }, // Cyan/teal
-    Rgb {
-        r: 136,
-        g: 0,
-        b: 255,
-    }, // Violet
-    Rgb {
-        r: 255,
-        g: 0,
-        b: 144,
-    }, // Pink/magenta
+#[allow(clippy::unreadable_literal)]
+const AURORA_PALETTE: [Rgb; 6] = hex_palette![
+    0x002EB8, // Deep blue
+    0x00FFD4, // Teal (stronger)
+    0x14FF78, // Green (muted/teal-leaning)
+    0x00C8FF, // Cyan/teal
+    0x8800FF, // Violet
+    0xFF0090  // Pink/magenta
 ];
 
 // Lava lamp palette: warm red/orange/purple tones
-const LAVA_LAMP_PALETTE: [Rgb; 5] = [
-    Rgb { r: 60, g: 0, b: 20 }, // Dark magenta/black
-    Rgb {
-        r: 210,
-        g: 0,
-        b: 56,
-    }, // Deep red/magenta
-    Rgb {
-        r: 255,
-        g: 80,
-        b: 0,
-    }, // Orange-red
-    Rgb {
-        r: 255,
-        g: 173,
-        b: 20,
-    }, // Bright orange/yellow
-    Rgb {
-        r: 197,
-        g: 0,
-        b: 200,
-    }, // Purple accent
+#[allow(clippy::unreadable_literal)]
+const LAVA_LAMP_PALETTE: [Rgb; 5] = hex_palette![
+    0x3C0014, // Dark magenta
+    0xD10038, // Deep red
+    0xFF5000, // Orange
+    0xFF972E, // Bright yellow
+    0xF2039F  // Purple accent
 ];
 
 // Balanced tuning: visible motion, still premium
