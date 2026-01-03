@@ -1,12 +1,4 @@
 //! Flow effect with palette-based presets
-//!
-//! A premium-looking effect with smooth flowing multi-layer gradients.
-//! Uses layered value-noise to create organic motion similar to flowing liquids
-//! or northern lights.
-//!
-//! Presets:
-//! - `Aurora`: Cool blue/teal/violet palette simulating northern lights.
-//! - `LavaLamp`: Warm red/orange/purple palette simulating lava lamp motion.
 
 use embassy_time::Instant;
 
@@ -18,21 +10,61 @@ use crate::{
 
 // Aurora palette: cool blue/teal/violet tones
 const AURORA_PALETTE: [Rgb; 6] = [
-    Rgb { r: 0, g: 46, b: 184 },   // Deep blue
-    Rgb { r: 0, g: 255, b: 212 },  // Teal (stronger)
-    Rgb { r: 20, g: 255, b: 120 }, // Green (muted/teal-leaning)
-    Rgb { r: 0, g: 200, b: 255 },  // Cyan/teal
-    Rgb { r: 136, g: 0, b: 255 },  // Violet
-    Rgb { r: 255, g: 0, b: 144 },  // Pink/magenta
+    Rgb {
+        r: 0,
+        g: 46,
+        b: 184,
+    }, // Deep blue
+    Rgb {
+        r: 0,
+        g: 255,
+        b: 212,
+    }, // Teal (stronger)
+    Rgb {
+        r: 20,
+        g: 255,
+        b: 120,
+    }, // Green (muted/teal-leaning)
+    Rgb {
+        r: 0,
+        g: 200,
+        b: 255,
+    }, // Cyan/teal
+    Rgb {
+        r: 136,
+        g: 0,
+        b: 255,
+    }, // Violet
+    Rgb {
+        r: 255,
+        g: 0,
+        b: 144,
+    }, // Pink/magenta
 ];
 
 // Lava lamp palette: warm red/orange/purple tones
 const LAVA_LAMP_PALETTE: [Rgb; 5] = [
-    Rgb { r: 60, g: 0, b: 20 },    // Dark magenta/black
-    Rgb { r: 210, g: 0, b: 56 },   // Deep red/magenta
-    Rgb { r: 255, g: 80, b: 0 },   // Orange-red
-    Rgb { r: 255, g: 173, b: 20 }, // Bright orange/yellow
-    Rgb { r: 197, g: 0, b: 200 },  // Purple accent
+    Rgb { r: 60, g: 0, b: 20 }, // Dark magenta/black
+    Rgb {
+        r: 210,
+        g: 0,
+        b: 56,
+    }, // Deep red/magenta
+    Rgb {
+        r: 255,
+        g: 80,
+        b: 0,
+    }, // Orange-red
+    Rgb {
+        r: 255,
+        g: 173,
+        b: 20,
+    }, // Bright orange/yellow
+    Rgb {
+        r: 197,
+        g: 0,
+        b: 200,
+    }, // Purple accent
 ];
 
 // Balanced tuning: visible motion, still premium
@@ -90,7 +122,7 @@ impl FlowEffect {
         }
     }
 
-    /// Simple deterministic hash for noise generation (no floats)
+    /// Simple deterministic hash for noise generation
     #[inline]
     const fn hash(x: u64) -> u32 {
         // SplitMix64-style mixing, then fold down to u32.
@@ -159,7 +191,8 @@ impl FlowEffect {
         let time_ms = now.as_millis();
 
         // Derive cell sizes from strip length so the effect stays smooth.
-        // These values are "LEDs per noise cell" (bigger => smoother, slower spatial change).
+        // These values are "LEDs per noise cell" (bigger => smoother, slower spatial
+        // change).
         let cell1 = Self::clamp_u32(len / 6, MIN_CELL1_LEDS, MAX_CELL1_LEDS).max(1);
         let cell2 = Self::clamp_u32(len / 12, MIN_CELL2_LEDS, MAX_CELL2_LEDS).max(1);
         let cell3 = Self::clamp_u32(len / 4, MIN_CELL3_LEDS, MAX_CELL3_LEDS).max(1);
@@ -182,15 +215,13 @@ impl FlowEffect {
         let n3 = Self::value_noise(x3.wrapping_add(p3.wrapping_mul(2)));
 
         // Blend layers: 50% base, 30% detail, 20% shimmer
-        let combined = (u16::from(n1) * 128 + u16::from(n2) * 77 + u16::from(n3) * 51) >> 8;
+        let combined =
+            (u16::from(n1) * 128 + u16::from(n2) * 77 + u16::from(n3) * 51) >> 8;
         combined as u8
     }
 }
 
 impl Effect for FlowEffect {
-    // Don't use precise colors to avoid affecting brightness
-    const PRECISE_COLORS: bool = false;
-
     fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         if leds.is_empty() {
             return;
@@ -215,9 +246,5 @@ impl Effect for FlowEffect {
                 b: scale8(base_color.b, brightness_mod),
             };
         }
-    }
-
-    fn reset(&mut self) {
-        // No state to reset for this effect
     }
 }

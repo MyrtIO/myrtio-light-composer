@@ -71,14 +71,14 @@ pub enum EffectSlot {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum EffectId {
-    Static = EFFECT_ID_STATIC,
-    RainbowMirrored = EFFECT_ID_RAINBOW_MIRRORED,
-    RainbowLong = EFFECT_ID_RAINBOW_LONG,
-    RainbowLongInverse = EFFECT_ID_RAINBOW_LONG_INVERSE,
-    RainbowShort = EFFECT_ID_RAINBOW_SHORT,
+    Static              = EFFECT_ID_STATIC,
+    RainbowMirrored     = EFFECT_ID_RAINBOW_MIRRORED,
+    RainbowLong         = EFFECT_ID_RAINBOW_LONG,
+    RainbowLongInverse  = EFFECT_ID_RAINBOW_LONG_INVERSE,
+    RainbowShort        = EFFECT_ID_RAINBOW_SHORT,
     RainbowShortInverse = EFFECT_ID_RAINBOW_SHORT_INVERSE,
-    Aurora = EFFECT_ID_AURORA,
-    LavaLamp = EFFECT_ID_LAVA_LAMP,
+    Aurora              = EFFECT_ID_AURORA,
+    LavaLamp            = EFFECT_ID_LAVA_LAMP,
 }
 
 impl Default for EffectSlot {

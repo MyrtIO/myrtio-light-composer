@@ -52,6 +52,24 @@ The entry point is `src/lib.rs`. It re-exports the primary components needed to 
 *   **Time Types**: `Duration`, `Instant` (re-exported from `embassy-time`).
 *   **Data Types**: `Rgb`, `Hsv`, `EffectId`.
 
+## Commands
+
+### Validation
+
+To validate code, run the following commands:
+```
+just test
+just lint
+```
+
+### Formatting
+
+To format code, run the following command after all changes are made:
+
+```
+just format
+```
+
 ## Module Map (`src/`)
 
 ### Core Infrastructure

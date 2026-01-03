@@ -14,7 +14,10 @@ mod tests {
 
     #[test]
     fn test_effect_id_parse_lava_lamp() {
-        assert_eq!(EffectId::parse_from_str("lava_lamp"), Some(EffectId::LavaLamp));
+        assert_eq!(
+            EffectId::parse_from_str("lava_lamp"),
+            Some(EffectId::LavaLamp)
+        );
     }
 
     #[test]
@@ -28,4 +31,3 @@ mod tests {
         assert_eq!(EffectId::LavaLamp.as_str(), "lava_lamp");
     }
 }
-

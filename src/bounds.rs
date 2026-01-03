@@ -28,14 +28,16 @@ impl RenderingBounds {
     }
 }
 
+/// Get a slice of the LEDs within the bounds
 pub(crate) fn bounded(leds: &mut [Rgb], bounds: RenderingBounds) -> &mut [Rgb] {
     let start = bounds.start;
     let end = bounds.end;
     &mut leds[start as usize..end as usize]
 }
 
-pub const fn center_of<T>(leds: &[T]) -> usize {
-    let count = leds.len();
+/// Get the center of the array
+pub const fn center_of<T>(arr: &[T]) -> usize {
+    let count = arr.len();
     let mut center_len = count / 2;
     if !count.is_multiple_of(2) {
         center_len += 1;
