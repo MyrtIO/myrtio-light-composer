@@ -10,6 +10,10 @@ rust-version = "1.90"
 [lib]
 name = "myrtio_light_composer"
 
+[[example]]
+name = "preview"
+path = "examples/preview"
+
 [dependencies]
 critical-section = "1.2"
 embassy-time = "0.5.0"

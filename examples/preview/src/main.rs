@@ -5,11 +5,11 @@
 
 use std::time::Instant as StdInstant;
 
-use eframe::egui;
+use eframe::egui::{self, Ui};
 use myrtio_light_composer::{
     Duration, EffectId, FilterProcessorConfig, Instant, IntentChannel, IntentSender,
     LightChangeIntent, LightEngineConfig, LightStateIntent, Renderer, Rgb, TransitionTimings,
-    bounds::RenderingBounds, filter::BrightnessFilterConfig, ws2812_lut,
+    U8Adjuster, bounds::RenderingBounds, filter::BrightnessFilterConfig, ws2812_lut,
 };
 
 /// Maximum number of LEDs the renderer supports
@@ -43,8 +43,8 @@ const PREVIEW_TRANSITION_TIMINGS: TransitionTimings = TransitionTimings {
 enum Layout {
     /// Render as a 1D strip, wrapped to available window width
     Strip,
-    /// Render as multiple vertical lines (columns). The strip is linear; we just reshape it.
-    Lines,
+    /// Render as multiple vertical lines (columns). The strip is linear; we just reshape it into a curtain.
+    Curtain,
 }
 
 fn main() -> eframe::Result<()> {
@@ -178,6 +178,12 @@ impl PreviewApp {
         let _ = self.intent_sender.try_send(intent);
     }
 
+    /// Send a brightness adjuster change intent
+    fn send_brightness_adjuster_change(&self, adjuster: Option<U8Adjuster>) {
+        let intent = LightChangeIntent::Adjuster(adjuster);
+        let _ = self.intent_sender.try_send(intent);
+    }
+
     /// Send a bounds change intent
     fn send_bounds_change(&self, led_count: u8) {
         let intent = LightChangeIntent::Bounds(RenderingBounds {
@@ -191,6 +197,11 @@ impl PreviewApp {
     fn reset_time(&mut self) {
         self.t_ms = 0;
         self.last_frame = StdInstant::now();
+    }
+
+    /// Toggle playing state
+    fn toggle_playing(&mut self) {
+        self.playing = !self.playing;
     }
 
     /// Update synthetic time based on wall clock and time scale
@@ -212,7 +223,6 @@ impl PreviewApp {
             self.t_ms = self.t_ms.wrapping_add(delta_ms);
         }
     }
-
 }
 
 impl eframe::App for PreviewApp {
@@ -222,137 +232,153 @@ impl eframe::App for PreviewApp {
 
         // Render the frame using synthetic time
         let now = Instant::from_millis(self.t_ms);
-        let rendered_frame = self.renderer.render(now);
-
-        // Take only the LEDs we want to display and optionally apply gamma
-        let apply_gamma = self.apply_gamma;
-        let frame: Vec<Rgb> = rendered_frame
-            .iter()
-            .take(self.led_count)
-            .map(|&pixel| {
-                if apply_gamma {
-                    Rgb {
-                        r: ws2812_lut(pixel.r),
-                        g: ws2812_lut(pixel.g),
-                        b: ws2812_lut(pixel.b),
-                    }
-                } else {
-                    pixel
-                }
-            })
-            .collect();
+        let frame = self.renderer.render(now).to_vec();
 
         // Request continuous repaint for animation
         ctx.request_repaint();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Light Composer Preview");
-            ui.add_space(8.0);
-
-            // === Row 1: Effect selector + Play/Pause/Reset ===
             ui.horizontal(|ui| {
-                ui.label("Effect:");
-                let mut selected_effect = self.effect_id;
-                egui::ComboBox::from_id_salt("effect_selector")
-                    .selected_text(self.effect_id.as_str())
-                    .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut selected_effect, EffectId::Rainbow, "rainbow");
-                        ui.selectable_value(&mut selected_effect, EffectId::Static, "static");
-                        ui.selectable_value(
-                            &mut selected_effect,
-                            EffectId::VelvetAnalog,
-                            "velvet_analog",
+                // <PlaybackControls>
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        if ui.button("⏮ Reset").clicked() {
+                            self.reset_time();
+                        }
+                        if ui
+                            .button(if self.playing {
+                                "⏸ Pause"
+                            } else {
+                                "▶ Play"
+                            })
+                            .clicked()
+                        {
+                            self.toggle_playing();
+                        }
+
+                        ui.add_space(8.0);
+                    });
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        let secs = self.t_ms / 1000;
+                        let ms = self.t_ms % 1000;
+                        ui.label(format!("Time: {secs}.{ms:03}s"));
+                    });
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label("Speed:");
+                        ui.add(
+                            egui::Slider::new(&mut self.time_scale, 0.1..=5.0).logarithmic(true),
                         );
                     });
-                if selected_effect != self.effect_id {
-                    self.effect_id = selected_effect;
-                    self.send_effect_change(selected_effect);
-                }
-
+                });
+                // </PlaybackControls>
                 ui.add_space(16.0);
+                // <LayoutSelector>
+                ui.vertical(|ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("Size: ");
+                        ui.add(egui::Slider::new(&mut self.led_size, 4.0..=32.0));
+                    });
 
-                // Play/Pause
-                if ui
-                    .button(if self.playing { "⏸ Pause" } else { "▶ Play" })
-                    .clicked()
-                {
-                    self.playing = !self.playing;
-                }
+                    ui.add_space(4.0);
 
-                if ui.button("⏮ Reset").clicked() {
-                    self.reset_time();
-                }
+                    ui.horizontal(|ui| {
+                        ui.label("Layout:");
+                        ui.selectable_value(&mut self.layout, Layout::Strip, "strip");
+                        ui.selectable_value(&mut self.layout, Layout::Curtain, "curtain");
+                    });
+
+                    ui.add_space(4.0);
+
+                    ui.horizontal(|ui| {
+                        ui.label("LEDs:");
+                        let old_led_count = self.led_count;
+                        ui.add(egui::Slider::new(&mut self.led_count, 1usize..=MAX_LEDS));
+                        if self.led_count != old_led_count {
+                            #[allow(clippy::cast_possible_truncation)]
+                            self.send_bounds_change(self.led_count as u8);
+                        }
+
+                        if self.layout == Layout::Curtain {
+                            ui.add_space(8.0);
+
+                            ui.label("Lines:");
+                            let old_lines = self.lines;
+                            ui.add(egui::Slider::new(&mut self.lines, 1usize..=64usize));
+                            if self.lines != old_lines {
+                                self.send_bounds_change(self.lines as u8);
+                            }
+                        }
+                    });
+                });
+                // </LayoutControls>
             });
 
-            ui.add_space(8.0);
+            ui.add_space(16.0);
 
-            // === Row 2: Layout selector ===
-            ui.horizontal(|ui| {
-                ui.label("Layout:");
-                ui.selectable_value(&mut self.layout, Layout::Strip, "strip");
-                ui.selectable_value(&mut self.layout, Layout::Lines, "lines");
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    ui.label("Effect:");
+                    let mut selected_effect = self.effect_id;
+                    egui::ComboBox::from_id_salt("effect_selector")
+                        .selected_text(self.effect_id.as_str())
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut selected_effect, EffectId::Rainbow, "rainbow");
+                            ui.selectable_value(&mut selected_effect, EffectId::Static, "static");
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::VelvetAnalog,
+                                "velvet_analog",
+                            );
+                        });
+                    if selected_effect != self.effect_id {
+                        self.effect_id = selected_effect;
+                        self.send_effect_change(selected_effect);
+                    }
+                });
 
-                if self.layout == Layout::Lines {
-                    ui.add_space(16.0);
-                    ui.label("Lines:");
-                    ui.add(egui::Slider::new(&mut self.lines, 1usize..=64usize));
-                }
-            });
+                ui.add_space(4.0);
 
-            ui.add_space(8.0);
+                ui.horizontal(|ui| {
+                    ui.label("Color:");
+                    let old_color = self.color;
+                    if ui.color_edit_button_srgb(&mut self.color).changed()
+                        && old_color != self.color
+                    {
+                        self.send_color_change(self.color[0], self.color[1], self.color[2]);
+                    }
+                });
 
-            // === Row 3: Color + Brightness ===
-            ui.horizontal(|ui| {
-                ui.label("Color:");
-                let old_color = self.color;
-                if ui.color_edit_button_srgb(&mut self.color).changed() && old_color != self.color {
-                    self.send_color_change(self.color[0], self.color[1], self.color[2]);
-                }
+                ui.add_space(4.0);
 
-                ui.add_space(16.0);
+                ui.horizontal(|ui| {
+                    ui.label("Brightness:");
+                    let old_brightness = self.brightness;
+                    ui.add(egui::DragValue::new(&mut self.brightness).range(0u8..=255u8));
+                    if self.brightness != old_brightness {
+                        self.send_brightness_change(self.brightness);
+                    }
 
-                ui.label("Brightness:");
-                let old_brightness = self.brightness;
-                ui.add(egui::Slider::new(&mut self.brightness, 0u8..=255u8));
-                if self.brightness != old_brightness {
-                    self.send_brightness_change(self.brightness);
-                }
-            });
+                    ui.add_space(8.0);
 
-            ui.add_space(8.0);
-
-            // === Row 4: Speed + LED count + LED size ===
-            ui.horizontal(|ui| {
-                ui.label("Speed:");
-                ui.add(egui::Slider::new(&mut self.time_scale, 0.1..=5.0).logarithmic(true));
-
-                ui.add_space(16.0);
-
-                ui.label("LEDs:");
-                let old_led_count = self.led_count;
-                ui.add(egui::Slider::new(&mut self.led_count, 1usize..=MAX_LEDS));
-                if self.led_count != old_led_count {
-                    #[allow(clippy::cast_possible_truncation)]
-                    self.send_bounds_change(self.led_count as u8);
-                }
-
-                ui.add_space(16.0);
-
-                ui.label("Size:");
-                ui.add(egui::Slider::new(&mut self.led_size, 4.0..=32.0));
-            });
-
-            ui.add_space(8.0);
-
-            // === Row 5: Gamma checkbox + Time display ===
-            ui.horizontal(|ui| {
-                ui.checkbox(&mut self.apply_gamma, "WS2812 Gamma");
-
-                ui.add_space(16.0);
-
-                let secs = self.t_ms / 1000;
-                let ms = self.t_ms % 1000;
-                ui.label(format!("Time: {secs}.{ms:03}s"));
+                    let old_apply_gamma = self.apply_gamma;
+                    ui.horizontal(|ui| {
+                        ui.checkbox(&mut self.apply_gamma, "WS2812 Gamma");
+                    });
+                    if self.apply_gamma != old_apply_gamma {
+                        let adjuster: Option<U8Adjuster> = if self.apply_gamma {
+                            Some(ws2812_lut)
+                        } else {
+                            None
+                        };
+                        self.send_brightness_adjuster_change(adjuster);
+                    }
+                });
             });
 
             ui.add_space(16.0);
@@ -387,10 +413,10 @@ impl eframe::App for PreviewApp {
                             egui::vec2(self.led_size, self.led_size),
                         );
                         let color = egui::Color32::from_rgb(pixel.r, pixel.g, pixel.b);
-                        painter.rect_filled(rect, 2.0, color);
+                        painter.rect_filled(rect, 3.0, color);
                     }
                 }
-                Layout::Lines => {
+                Layout::Curtain => {
                     let per_line = self.led_count.max(1);
                     let line_count = self.lines.max(1);
 

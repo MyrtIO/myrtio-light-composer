@@ -105,6 +105,10 @@ impl BrightnessFilter {
     pub(crate) fn set_min_brightness(&mut self, min_brightness: u8) {
         self.min_brightness = min_brightness;
     }
+
+    pub(crate) fn set_adjuster(&mut self, adjust: Option<U8Adjuster>) {
+        self.adjust = adjust;
+    }
 }
 
 impl Filter for BrightnessFilter {

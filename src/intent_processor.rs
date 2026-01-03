@@ -2,6 +2,7 @@
 //!
 //! Handles conversion of user intents to renderer operations.
 
+use crate::U8Adjuster;
 use crate::bounds::RenderingBounds;
 use crate::channel::{Channel, Receiver, Sender};
 use crate::color::{Rgb, kelvin_to_rgb};
@@ -30,6 +31,8 @@ pub enum LightChangeIntent {
     ColorCorrection(Rgb),
     /// Change the brightness range (min/scale)
     BrightnessRange(BrightnessRange),
+    /// Change the brightness adjuster
+    Adjuster(Option<U8Adjuster>),
 }
 
 /// Side effects from processing intents that the renderer should apply
@@ -41,12 +44,17 @@ pub struct IntentEffects {
     pub color_correction: Option<Rgb>,
     /// New brightness range to apply
     pub brightness_range: Option<BrightnessRange>,
+    /// New brightness adjuster to apply
+    pub adjuster: Option<Option<U8Adjuster>>,
 }
 
 impl IntentEffects {
     /// Check if any effects need to be applied
     pub const fn has_effects(&self) -> bool {
-        self.bounds.is_some() || self.color_correction.is_some() || self.brightness_range.is_some()
+        self.bounds.is_some()
+            || self.color_correction.is_some()
+            || self.brightness_range.is_some()
+            || self.adjuster.is_some()
     }
 }
 
@@ -94,6 +102,9 @@ impl<'a, const SIZE: usize> IntentProcessor<'a, SIZE> {
                 }
                 LightChangeIntent::BrightnessRange(range) => {
                     effects.brightness_range = Some(range);
+                }
+                LightChangeIntent::Adjuster(adjuster) => {
+                    effects.adjuster = Some(adjuster);
                 }
             }
         }

@@ -122,6 +122,10 @@ impl<'a, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
             self.filters.brightness.set_min_brightness(brightness_range.min());
             self.filters.brightness.set_scale(brightness_range.max());
         }
+        
+        if let Some(adjuster) = effects.adjuster {
+            self.filters.brightness.set_adjuster(adjuster);
+        }
     }
 
     /// Process the next operation from the stack
