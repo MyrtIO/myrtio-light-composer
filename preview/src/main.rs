@@ -5,11 +5,12 @@
 
 use std::time::Instant as StdInstant;
 
-use eframe::egui::{self, Ui};
+use eframe::egui::{self};
 use myrtio_light_composer::{
     Duration, EffectId, FilterProcessorConfig, Instant, IntentChannel, IntentSender,
-    LightChangeIntent, LightEngineConfig, LightStateIntent, Renderer, Rgb, TransitionTimings,
-    U8Adjuster, bounds::RenderingBounds, filter::BrightnessFilterConfig, ws2812_lut,
+    LightChangeIntent, LightEngineConfig, LightStateIntent, Renderer, Rgb,
+    TransitionTimings, U8Adjuster, bounds::RenderingBounds,
+    filter::BrightnessFilterConfig, ws2812_lut,
 };
 
 /// Maximum number of LEDs the renderer supports
@@ -102,7 +103,7 @@ impl PreviewApp {
             g: 180,
             b: 100,
         };
-        let initial_effect = EffectId::Rainbow;
+        let initial_effect = EffectId::RainbowMirrored;
         let initial_brightness: u8 = 255;
         let initial_led_count: u8 = DEFAULT_LED_COUNT as u8;
 
@@ -129,8 +130,10 @@ impl PreviewApp {
             color: initial_color,
         };
 
-        let renderer =
-            Renderer::<MAX_LEDS, INTENT_CHANNEL_SIZE>::new(INTENTS_CHANNEL.receiver(), &config);
+        let renderer = Renderer::<MAX_LEDS, INTENT_CHANNEL_SIZE>::new(
+            INTENTS_CHANNEL.receiver(),
+            &config,
+        );
         let intent_sender = INTENTS_CHANNEL.sender();
 
         Self {
@@ -211,7 +214,8 @@ impl PreviewApp {
         self.last_frame = now;
 
         if self.playing {
-            let delta_ms_f64 = delta.as_secs_f64() * 1000.0 * f64::from(self.time_scale);
+            let delta_ms_f64 =
+                delta.as_secs_f64() * 1000.0 * f64::from(self.time_scale);
             let delta_ms_f64 = if delta_ms_f64.is_finite() {
                 #[allow(clippy::cast_precision_loss)]
                 delta_ms_f64.clamp(0.0, u64::MAX as f64)
@@ -272,7 +276,8 @@ impl eframe::App for PreviewApp {
                     ui.horizontal(|ui| {
                         ui.label("Speed:");
                         ui.add(
-                            egui::Slider::new(&mut self.time_scale, 0.1..=5.0).logarithmic(true),
+                            egui::Slider::new(&mut self.time_scale, 0.1..=5.0)
+                                .logarithmic(true),
                         );
                     });
                 });
@@ -289,8 +294,16 @@ impl eframe::App for PreviewApp {
 
                     ui.horizontal(|ui| {
                         ui.label("Layout:");
-                        ui.selectable_value(&mut self.layout, Layout::Strip, "strip");
-                        ui.selectable_value(&mut self.layout, Layout::Curtain, "curtain");
+                        ui.selectable_value(
+                            &mut self.layout,
+                            Layout::Strip,
+                            "strip",
+                        );
+                        ui.selectable_value(
+                            &mut self.layout,
+                            Layout::Curtain,
+                            "curtain",
+                        );
                     });
 
                     ui.add_space(4.0);
@@ -298,7 +311,10 @@ impl eframe::App for PreviewApp {
                     ui.horizontal(|ui| {
                         ui.label("LEDs:");
                         let old_led_count = self.led_count;
-                        ui.add(egui::Slider::new(&mut self.led_count, 1usize..=MAX_LEDS));
+                        ui.add(egui::Slider::new(
+                            &mut self.led_count,
+                            1usize..=MAX_LEDS,
+                        ));
                         if self.led_count != old_led_count {
                             #[allow(clippy::cast_possible_truncation)]
                             self.send_bounds_change(self.led_count as u8);
@@ -309,7 +325,10 @@ impl eframe::App for PreviewApp {
 
                             ui.label("Lines:");
                             let old_lines = self.lines;
-                            ui.add(egui::Slider::new(&mut self.lines, 1usize..=64usize));
+                            ui.add(egui::Slider::new(
+                                &mut self.lines,
+                                1usize..=64usize,
+                            ));
                             if self.lines != old_lines {
                                 self.send_bounds_change(self.lines as u8);
                             }
@@ -328,8 +347,26 @@ impl eframe::App for PreviewApp {
                     egui::ComboBox::from_id_salt("effect_selector")
                         .selected_text(self.effect_id.as_str())
                         .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut selected_effect, EffectId::Rainbow, "rainbow");
-                            ui.selectable_value(&mut selected_effect, EffectId::Static, "static");
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::RainbowMirrored,
+                                "rainbow",
+                            );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::RainbowForward,
+                                "rainbow_forward",
+                            );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::RainbowBackward,
+                                "rainbow_backward",
+                            );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::Static,
+                                "static",
+                            );
                             ui.selectable_value(
                                 &mut selected_effect,
                                 EffectId::VelvetAnalog,
@@ -350,7 +387,11 @@ impl eframe::App for PreviewApp {
                     if ui.color_edit_button_srgb(&mut self.color).changed()
                         && old_color != self.color
                     {
-                        self.send_color_change(self.color[0], self.color[1], self.color[2]);
+                        self.send_color_change(
+                            self.color[0],
+                            self.color[1],
+                            self.color[2],
+                        );
                     }
                 });
 
@@ -359,7 +400,10 @@ impl eframe::App for PreviewApp {
                 ui.horizontal(|ui| {
                     ui.label("Brightness:");
                     let old_brightness = self.brightness;
-                    ui.add(egui::DragValue::new(&mut self.brightness).range(0u8..=255u8));
+                    ui.add(
+                        egui::DragValue::new(&mut self.brightness)
+                            .range(0u8..=255u8),
+                    );
                     if self.brightness != old_brightness {
                         self.send_brightness_change(self.brightness);
                     }
@@ -389,8 +433,12 @@ impl eframe::App for PreviewApp {
 
             match self.layout {
                 Layout::Strip => {
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    let leds_per_row = (available_width / led_pitch).floor().max(1.0) as usize;
+                    #[allow(
+                        clippy::cast_possible_truncation,
+                        clippy::cast_sign_loss
+                    )]
+                    let leds_per_row =
+                        (available_width / led_pitch).floor().max(1.0) as usize;
                     let rows = self.led_count.div_ceil(leds_per_row);
                     #[allow(clippy::cast_precision_loss)]
                     let height = rows as f32 * led_pitch;
@@ -412,7 +460,8 @@ impl eframe::App for PreviewApp {
                             egui::pos2(x, y),
                             egui::vec2(self.led_size, self.led_size),
                         );
-                        let color = egui::Color32::from_rgb(pixel.r, pixel.g, pixel.b);
+                        let color =
+                            egui::Color32::from_rgb(pixel.r, pixel.g, pixel.b);
                         painter.rect_filled(rect, 3.0, color);
                     }
                 }
@@ -420,8 +469,12 @@ impl eframe::App for PreviewApp {
                     let per_line = self.led_count.max(1);
                     let line_count = self.lines.max(1);
 
-                    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-                    let lines_per_row = (available_width / led_pitch).floor().max(1.0) as usize;
+                    #[allow(
+                        clippy::cast_possible_truncation,
+                        clippy::cast_sign_loss
+                    )]
+                    let lines_per_row =
+                        (available_width / led_pitch).floor().max(1.0) as usize;
                     let block_rows = line_count.div_ceil(lines_per_row);
 
                     #[allow(clippy::cast_precision_loss)]
@@ -440,13 +493,15 @@ impl eframe::App for PreviewApp {
 
                         for (offset, pixel) in frame.iter().enumerate() {
                             let x = origin.x + block_col as f32 * led_pitch;
-                            let y = origin.y + (block_row * per_line + offset) as f32 * led_pitch;
+                            let y = origin.y
+                                + (block_row * per_line + offset) as f32 * led_pitch;
 
                             let rect = egui::Rect::from_min_size(
                                 egui::pos2(x, y),
                                 egui::vec2(self.led_size, self.led_size),
                             );
-                            let color = egui::Color32::from_rgb(pixel.r, pixel.g, pixel.b);
+                            let color =
+                                egui::Color32::from_rgb(pixel.r, pixel.g, pixel.b);
                             painter.rect_filled(rect, 2.0, color);
                         }
                     }

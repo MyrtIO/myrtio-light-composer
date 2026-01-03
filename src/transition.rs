@@ -1,7 +1,9 @@
 use embassy_time::{Duration, Instant};
 
-use crate::color::{Rgb, blend_colors};
-use crate::math8::{blend8, progress8};
+use crate::{
+    color::{Rgb, blend_colors},
+    math8::{blend8, progress8},
+};
 
 /// Blends two values of type `T` using a progress value (0-255)
 pub type ValueBlender<T> = fn(T, T, u8) -> T;

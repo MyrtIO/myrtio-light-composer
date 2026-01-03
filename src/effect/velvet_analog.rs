@@ -6,9 +6,11 @@
 use embassy_time::{Duration, Instant};
 
 use super::Effect;
-use crate::color::{fill_gradient_fp, rgb2hsv, GradientDirection, Hsv, Rgb};
-use crate::math8::{blend8, ease_in_out_quad, scale8};
-use crate::transition::ValueTransition;
+use crate::{
+    color::{GradientDirection, Hsv, Rgb, fill_gradient_fp, rgb2hsv},
+    math8::{blend8, ease_in_out_quad, scale8},
+    transition::ValueTransition,
+};
 
 const DEFAULT_BREATHE_PERIOD_MS: u64 = 14_000;
 const DEFAULT_DRIFT_PERIOD_MS: u64 = 27_000;
@@ -73,8 +75,7 @@ impl VelvetAnalogEffect {
         let offset: i16 = (i16::from(e) - 128) * (range as i16) / 128;
         let base_mid: i16 = (leds.len() / 2) as i16;
 
-        let mid = (base_mid + offset).clamp(0, last as i16) as usize;
-        mid
+        (base_mid + offset).clamp(0, last as i16) as usize
     }
 
     fn palette_from_anchor(anchor: Hsv, breathe_scale: u8) -> (Hsv, Hsv, Hsv) {
@@ -121,28 +122,9 @@ impl Effect for VelvetAnalogEffect {
 
         fill_gradient_fp(leds, 0, c1, mid, c2, GradientDirection::Shortest);
         fill_gradient_fp(leds, mid, c2, last, c3, GradientDirection::Shortest);
-
     }
 
     fn is_transitioning(&self) -> bool {
         self.color.is_transitioning()
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

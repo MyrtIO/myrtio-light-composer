@@ -1,7 +1,7 @@
 [package]
 name = "myrtio-light-composer"
 description = "1D LED rendering library"
-version = "0.6.0"
+version = "0.6.1"
 publish = true
 license = "MIT"
 edition = "2024"
@@ -9,10 +9,6 @@ rust-version = "1.90"
 
 [lib]
 name = "myrtio_light_composer"
-
-[[example]]
-name = "preview"
-path = "examples/preview"
 
 [dependencies]
 critical-section = "1.2"

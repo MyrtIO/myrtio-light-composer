@@ -1,7 +1,6 @@
 use heapless::Deque;
 
-use crate::color::Rgb;
-use crate::effect::EffectId;
+use crate::{color::Rgb, effect::EffectId};
 
 /// Operations that can be performed on the light engine
 ///
@@ -74,7 +73,11 @@ impl<const N: usize> OperationStack<N> {
     }
 
     /// Push a effect operation onto the stack
-    pub fn push_effect(&mut self, id: EffectId, brightness: u8) -> Result<(), Operation> {
+    pub fn push_effect(
+        &mut self,
+        id: EffectId,
+        brightness: u8,
+    ) -> Result<(), Operation> {
         let free_slots = self.inner.capacity() - self.inner.len();
         let effect_op = Operation::SwitchEffect(id);
         if free_slots < 3 {

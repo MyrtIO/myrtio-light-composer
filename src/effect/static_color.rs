@@ -6,8 +6,7 @@
 use embassy_time::{Duration, Instant};
 
 use super::Effect;
-use crate::color::Rgb;
-use crate::transition::ValueTransition;
+use crate::{color::Rgb, transition::ValueTransition};
 
 /// Static color effect - fills all LEDs with one color
 ///

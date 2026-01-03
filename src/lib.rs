@@ -13,20 +13,24 @@ pub mod operation;
 pub mod renderer;
 pub mod transition;
 
+pub use color::{Hsv, Rgb};
+pub use effect::{EffectId, EffectSlot};
+pub use embassy_time::{Duration, Instant};
 pub use filter::{BrightnessRange, FilterProcessorConfig};
-pub use intent_processor::{
-    IntentChannel, IntentEffects, IntentProcessor, IntentReceiver, IntentSender,
-    LightChangeIntent, LightStateIntent,
-};
-pub use renderer::{LightEngineConfig, LightState, Renderer, TransitionTimings};
 pub use frame_scheduler::FrameScheduler;
 pub use gamma::ws2812_lut;
-pub use effect::{EffectId, EffectSlot};
-pub use operation::{Operation, OperationStack};
-
-pub use color::{Hsv, Rgb};
+pub use intent_processor::{
+    IntentChannel,
+    IntentEffects,
+    IntentProcessor,
+    IntentReceiver,
+    IntentSender,
+    LightChangeIntent,
+    LightStateIntent,
+};
 pub use math8::{U8Adjuster, ease_in_out_quad};
-pub use embassy_time::{Duration, Instant};
+pub use operation::{Operation, OperationStack};
+pub use renderer::{LightEngineConfig, LightState, Renderer, TransitionTimings};
 
 /// Abstract LED driver trait
 ///

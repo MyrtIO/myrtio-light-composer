@@ -1,14 +1,15 @@
 use embassy_time::{Duration, Instant};
-
 #[cfg(feature = "esp32-log")]
 use esp_println::println;
 
-use crate::bounds::{RenderingBounds, bounded};
-use crate::color::Rgb;
-use crate::effect::{EffectId, EffectSlot};
-use crate::filter::{ColorCorrection, Filter, FilterProcessor, FilterProcessorConfig};
-use crate::intent_processor::{IntentEffects, IntentProcessor, IntentReceiver};
-use crate::operation::{Operation, OperationStack};
+use crate::{
+    bounds::{RenderingBounds, bounded},
+    color::Rgb,
+    effect::{EffectId, EffectSlot},
+    filter::{ColorCorrection, Filter, FilterProcessor, FilterProcessorConfig},
+    intent_processor::{IntentEffects, IntentProcessor, IntentReceiver},
+    operation::{Operation, OperationStack},
+};
 
 /// Configuration for effect transitions
 #[derive(Clone, Copy)]
@@ -63,7 +64,10 @@ impl<'a, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
     /// Create a new light engine with command channel
     ///
     /// Returns the engine and a sender for commands.
-    pub fn new(intents: IntentReceiver<'a, INTENT_CHANNEL_SIZE>, config: &LightEngineConfig) -> Self {
+    pub fn new(
+        intents: IntentReceiver<'a, INTENT_CHANNEL_SIZE>,
+        config: &LightEngineConfig,
+    ) -> Self {
         Self {
             intent_processor: IntentProcessor::new(intents),
             frame_buffer: [Rgb::default(); MAX_LEDS],
@@ -119,10 +123,12 @@ impl<'a, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         }
 
         if let Some(brightness_range) = effects.brightness_range {
-            self.filters.brightness.set_min_brightness(brightness_range.min());
+            self.filters
+                .brightness
+                .set_min_brightness(brightness_range.min());
             self.filters.brightness.set_scale(brightness_range.max());
         }
-        
+
         if let Some(adjuster) = effects.adjuster {
             self.filters.brightness.set_adjuster(adjuster);
         }
@@ -136,24 +142,32 @@ impl<'a, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         // Start the transition for the current operation
         match next {
             Operation::SetBrightness(brightness) => {
-                self.filters
-                    .brightness
-                    .set(brightness, self.timings.brightness, now);
+                self.filters.brightness.set(
+                    brightness,
+                    self.timings.brightness,
+                    now,
+                );
             }
             Operation::SetColor(color) => {
-                self.state
-                    .current_effect
-                    .set_color(color, self.timings.color_change, now);
+                self.state.current_effect.set_color(
+                    color,
+                    self.timings.color_change,
+                    now,
+                );
             }
             Operation::PowerOff => {
-                self.filters
-                    .brightness
-                    .set_uncorrected(0, self.timings.brightness, now);
+                self.filters.brightness.set_uncorrected(
+                    0,
+                    self.timings.brightness,
+                    now,
+                );
             }
             Operation::PowerOn => {
-                self.filters
-                    .brightness
-                    .set(self.state.brightness, self.timings.brightness, now);
+                self.filters.brightness.set(
+                    self.state.brightness,
+                    self.timings.brightness,
+                    now,
+                );
             }
             Operation::SwitchEffect(_effect) => {
                 // This command changes instantly
@@ -167,9 +181,9 @@ impl<'a, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
     fn process_current_operation(&mut self) -> Option<Operation> {
         let current = self.stack.current()?;
         let is_complete = match current {
-            Operation::SetBrightness(_) | Operation::PowerOff | Operation::PowerOn => {
-                !self.filters.brightness.is_transitioning()
-            }
+            Operation::SetBrightness(_)
+            | Operation::PowerOff
+            | Operation::PowerOn => !self.filters.brightness.is_transitioning(),
             Operation::SetColor(_) => !self.state.current_effect.is_transitioning(),
             Operation::SwitchEffect(_) => true,
         };

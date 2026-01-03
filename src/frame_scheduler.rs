@@ -4,18 +4,21 @@
 //! The caller is responsible for sleeping/waiting between frames.
 
 use embassy_time::{Duration, Instant};
+
 use crate::{OutputDriver, Renderer};
 
 /// Default target frame rate (90 FPS).
 pub const DEFAULT_FPS: u32 = 90;
 
 /// Default frame duration based on target FPS.
-pub const DEFAULT_FRAME_DURATION: Duration = Duration::from_millis(1000 / DEFAULT_FPS as u64);
+pub const DEFAULT_FRAME_DURATION: Duration =
+    Duration::from_millis(1000 / DEFAULT_FPS as u64);
 
 /// Maximum drift before resetting frame timing (2 frames worth).
 ///
 /// If we fall behind by more than this, we skip the backlog instead of catching up.
-pub const MAX_DRIFT: Duration = Duration::from_millis(2 * (1000 / DEFAULT_FPS as u64));
+pub const MAX_DRIFT: Duration =
+    Duration::from_millis(2 * (1000 / DEFAULT_FPS as u64));
 
 /// Result of a frame tick operation.
 #[derive(Debug, Clone, Copy)]
@@ -46,8 +49,12 @@ pub struct FrameResult {
 ///     sleep_ms(result.sleep_duration.as_millis() as u64);
 /// }
 /// ```
-pub struct FrameScheduler<'a, O: OutputDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
-{
+pub struct FrameScheduler<
+    'a,
+    O: OutputDriver,
+    const MAX_LEDS: usize,
+    const INTENT_CHANNEL_SIZE: usize,
+> {
     output: O,
     renderer: Renderer<'a, MAX_LEDS, INTENT_CHANNEL_SIZE>,
     next_frame: Instant,
@@ -60,7 +67,10 @@ impl<'a, O: OutputDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usiz
     /// Create a new frame scheduler.
     ///
     /// Uses `DEFAULT_FRAME_DURATION` (90 FPS) for frame timing.
-    pub fn new(renderer: Renderer<'a, MAX_LEDS, INTENT_CHANNEL_SIZE>, driver: O) -> Self {
+    pub fn new(
+        renderer: Renderer<'a, MAX_LEDS, INTENT_CHANNEL_SIZE>,
+        driver: O,
+    ) -> Self {
         Self::with_frame_duration(renderer, driver, DEFAULT_FRAME_DURATION)
     }
 
@@ -123,7 +133,9 @@ impl<'a, O: OutputDriver, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usiz
     }
 
     /// Get a mutable reference to the renderer.
-    pub fn renderer_mut(&mut self) -> &mut Renderer<'a, MAX_LEDS, INTENT_CHANNEL_SIZE> {
+    pub fn renderer_mut(
+        &mut self,
+    ) -> &mut Renderer<'a, MAX_LEDS, INTENT_CHANNEL_SIZE> {
         &mut self.renderer
     }
 }

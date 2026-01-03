@@ -27,8 +27,6 @@ pub const fn blend8(a: u8, b: u8, amount_of_b: u8) -> u8 {
 }
 
 /// Calculate progress (0-255) based on elapsed time and duration
-///
-///
 #[allow(clippy::cast_possible_truncation)]
 #[inline]
 pub const fn progress8(elapsed: Duration, duration: Duration) -> u8 {

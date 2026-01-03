@@ -2,13 +2,15 @@
 //!
 //! Handles conversion of user intents to renderer operations.
 
-use crate::U8Adjuster;
-use crate::bounds::RenderingBounds;
-use crate::channel::{Channel, Receiver, Sender};
-use crate::color::{Rgb, kelvin_to_rgb};
-use crate::effect::EffectId;
-use crate::filter::BrightnessRange;
-use crate::operation::OperationStack;
+use crate::{
+    U8Adjuster,
+    bounds::RenderingBounds,
+    channel::{Channel, Receiver, Sender},
+    color::{Rgb, kelvin_to_rgb},
+    effect::EffectId,
+    filter::BrightnessRange,
+    operation::OperationStack,
+};
 
 /// Represents a user intent to change the light state.
 #[derive(Debug, Clone, Default)]
@@ -62,7 +64,8 @@ impl IntentEffects {
 pub type IntentSender<'a, const SIZE: usize> = Sender<'a, LightChangeIntent, SIZE>;
 
 /// Type alias for intent receiver
-pub type IntentReceiver<'a, const SIZE: usize> = Receiver<'a, LightChangeIntent, SIZE>;
+pub type IntentReceiver<'a, const SIZE: usize> =
+    Receiver<'a, LightChangeIntent, SIZE>;
 
 /// Type alias for the intent channel
 pub type IntentChannel<const SIZE: usize> = Channel<LightChangeIntent, SIZE>;
@@ -92,7 +95,11 @@ impl<'a, const SIZE: usize> IntentProcessor<'a, SIZE> {
         while let Ok(intent) = self.intents.try_receive() {
             match intent {
                 LightChangeIntent::State(state_intent) => {
-                    Self::process_state_intent(stack, &state_intent, current_brightness);
+                    Self::process_state_intent(
+                        stack,
+                        &state_intent,
+                        current_brightness,
+                    );
                 }
                 LightChangeIntent::Bounds(bounds) => {
                     effects.bounds = Some(bounds);

@@ -11,7 +11,7 @@ name = "myrtio-light-preview"
 path = "src/main.rs"
 
 [dependencies]
-myrtio-light-composer = { path = "../../" }
+myrtio-light-composer = { path = "../" }
 critical-section = { version = "1.2", features = ["std"] }
 eframe = "0.31"
 embassy-time = { version = "0.5.0", features = ["std"] }

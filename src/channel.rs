@@ -19,7 +19,8 @@ pub struct TryReceiveError;
 /// A bounded, thread-safe channel.
 ///
 /// This channel uses critical sections for synchronization, making it suitable
-/// for embedded environments. The channel is backed by a fixed-size `heapless::Deque`.
+/// for embedded environments. The channel is backed by a fixed-size
+/// `heapless::Deque`.
 pub struct Channel<T, const SIZE: usize> {
     inner: Mutex<RefCell<Deque<T, SIZE>>>,
 }

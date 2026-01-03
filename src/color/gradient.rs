@@ -30,7 +30,8 @@ pub fn fill_gradient_fp(
     }
 
     // Ensure proper ordering
-    let (start_pos, end_pos, mut start_color, mut end_color) = if end_pos < start_pos {
+    let (start_pos, end_pos, mut start_color, mut end_color) = if end_pos < start_pos
+    {
         (end_pos, start_pos, end_color, start_color)
     } else {
         (start_pos, end_pos, start_color, end_color)
@@ -45,8 +46,10 @@ pub fn fill_gradient_fp(
     }
 
     // Calculate distances in 8.7 fixed-point
-    let sat_distance87 = (i16::from(end_color.sat) - i16::from(start_color.sat)) << 7;
-    let val_distance87 = (i16::from(end_color.val) - i16::from(start_color.val)) << 7;
+    let sat_distance87 =
+        (i16::from(end_color.sat) - i16::from(start_color.sat)) << 7;
+    let val_distance87 =
+        (i16::from(end_color.val) - i16::from(start_color.val)) << 7;
 
     let hue_delta = end_color.hue.wrapping_sub(start_color.hue);
 
@@ -114,112 +117,3 @@ pub fn fill_gradient_three_fp(leds: &mut [Rgb], c1: Hsv, c2: Hsv, c3: Hsv) {
         fill_gradient_fp(leds, half, c2, last, c3, GradientDirection::Forward);
     }
 }
-
-// /// Hue direction for gradient calculation
-// #[derive(Clone, Copy)]
-// enum HueDirection {
-//     Forward,
-//     Backward,
-// }
-
-// /// Fill three-color gradient using floating-point math
-// pub fn fill_gradient_three_float(
-//     leds: &mut [Rgb],
-//     c1: Hsv,
-//     c2: Hsv,
-//     c3: Hsv,
-//     direction: HueDirection,
-// ) {
-//     if leds.is_empty() {
-//         return;
-//     }
-
-//     let len = leds.len();
-//     let half = len / 2;
-//     let last = len - 1;
-
-//     fill_gradient_segment_float(leds, 0, half, c1, c2, direction);
-//     if last > half {
-//         fill_gradient_segment_float(leds, half, last, c2, c3, direction);
-//     }
-// }
-
-// /// Fill gradient segment using floating-point math
-// #[allow(clippy::cast_precision_loss)]
-// pub fn fill_gradient_segment_float(
-//     leds: &mut [Rgb],
-//     mut start_idx: usize,
-//     mut end_idx: usize,
-//     mut start_color: Hsv,
-//     mut end_color: Hsv,
-//     direction: HueDirection,
-// ) {
-//     if leds.is_empty() {
-//         return;
-//     }
-
-//     if end_idx < start_idx {
-//         core::mem::swap(&mut start_idx, &mut end_idx);
-//         core::mem::swap(&mut start_color, &mut end_color);
-//     }
-
-//     end_idx = end_idx.min(leds.len() - 1);
-//     start_idx = min(start_idx, end_idx);
-
-//     if end_color.val == 0 || end_color.sat == 0 {
-//         end_color.hue = start_color.hue;
-//     }
-
-//     if start_color.val == 0 || start_color.sat == 0 {
-//         start_color.hue = end_color.hue;
-//     }
-
-//     let range = end_idx - start_idx;
-//     let hue_delta = hue_distance_float(start_color.hue, end_color.hue, direction);
-
-//     for step in 0..=range {
-//         let t = if range == 0 {
-//             0.0
-//         } else {
-//             step as f32 / range as f32
-//         };
-
-//         let hue = wrap_hue_float(start_color.hue, hue_delta, t);
-//         let sat = lerp_channel_float(start_color.sat, end_color.sat, t);
-//         let val = lerp_channel_float(start_color.val, end_color.val, t);
-
-//         leds[start_idx + step] = hsv2rgb(Hsv { hue, sat, val });
-//     }
-// }
-
-// #[allow(clippy::cast_lossless)]
-// fn hue_distance_float(start: u8, end: u8, direction: HueDirection) -> i16 {
-//     let start = i16::from(start);
-//     let end = i16::from(end);
-//     match direction {
-//         HueDirection::Forward => (end - start).rem_euclid(256),
-//         HueDirection::Backward => -(start - end).rem_euclid(256),
-//     }
-// }
-
-// #[allow(clippy::cast_possible_truncation, clippy::cast_lossless)]
-// fn wrap_hue_float(start_hue: u8, delta: i16, t: f32) -> u8 {
-//     let offset = (f32::from(delta) * t) as i16;
-//     let value = i16::from(start_hue) + offset;
-//     value.rem_euclid(256) as u8
-// }
-
-// #[allow(
-//     clippy::cast_possible_truncation,
-//     clippy::cast_sign_loss,
-//     clippy::cast_lossless
-// )]
-// fn lerp_channel_float(start: u8, end: u8, t: f32) -> u8 {
-//     if start == end {
-//         return start;
-//     }
-//     let start_f = f32::from(start);
-//     let end_f = f32::from(end);
-//     let value = start_f + (end_f - start_f) * t;
-//     value.clamp(0.0, 255.0) as u8
-// }

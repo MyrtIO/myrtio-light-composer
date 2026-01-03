@@ -2,10 +2,8 @@
 //!
 //! Applies per-channel multiplicative scaling to correct color output.
 
-use crate::color::Rgb;
-use crate::math8::scale8;
-
 use super::Filter;
+use crate::{color::Rgb, math8::scale8};
 
 /// Color correction filter
 ///

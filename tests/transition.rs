@@ -1,5 +1,10 @@
 mod tests {
-    use myrtio_light_composer::{Duration, Instant, color::Rgb, transition::ValueTransition};
+    use myrtio_light_composer::{
+        Duration,
+        Instant,
+        color::Rgb,
+        transition::ValueTransition,
+    };
 
     #[test]
     fn test_value_transition_u8() {

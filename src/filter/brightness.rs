@@ -8,7 +8,6 @@
 //! - Fade-out-in during effect changes
 
 use embassy_time::{Duration, Instant};
-
 #[cfg(feature = "esp32-log")]
 use esp_println::println;
 
@@ -67,7 +66,10 @@ pub(crate) struct BrightnessFilter {
 
 impl BrightnessFilter {
     /// Create a new brightness effect
-    pub(crate) const fn new(brightness: u8, config: &BrightnessFilterConfig) -> Self {
+    pub(crate) const fn new(
+        brightness: u8,
+        config: &BrightnessFilterConfig,
+    ) -> Self {
         Self {
             min_brightness: config.min_brightness,
             scale: config.scale,
@@ -89,7 +91,12 @@ impl BrightnessFilter {
         self.brightness.set(corrected_brightness, duration, now);
     }
 
-    pub(crate) fn set_uncorrected(&mut self, brightness: u8, duration: Duration, now: Instant) {
+    pub(crate) fn set_uncorrected(
+        &mut self,
+        brightness: u8,
+        duration: Duration,
+        now: Instant,
+    ) {
         self.brightness.set(brightness, duration, now);
     }
 

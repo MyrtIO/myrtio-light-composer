@@ -1,17 +1,27 @@
 //! Rainbow cycling effects
 //!
 //! Provides two rainbow effect variants:
-//! - `RainbowEffect`: Uses fixed-point HSV gradient algorithm (ported from `FastLED`)
+//! - `RainbowEffect`: Uses fixed-point HSV gradient algorithm (ported from
+//!   `FastLED`)
 //! - `RainbowFlowEffect`: Three-point mirrored gradient with smooth flow
 
 use embassy_time::{Duration, Instant};
 
 use super::Effect;
-use crate::color::{Hsv, Rgb, fill_gradient_three_fp, mirror_half};
-use crate::bounds::center_of;
+use crate::{
+    bounds::center_of,
+    color::{Hsv, Rgb, fill_gradient_three_fp, mirror_half},
+};
 
 const DEFAULT_CYCLE_MS: u64 = 12_000;
 const HUE_STEP: u8 = 60;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RainbowDirection {
+    Forward,
+    Backward,
+    Mirrored,
+}
 
 /// Rainbow effect using fixed-point HSV gradient algorithm
 ///
@@ -25,6 +35,8 @@ pub struct RainbowEffect {
     value: u8,
     /// Saturation (0-255)
     saturation: u8,
+    /// Direction of the rainbow
+    direction: RainbowDirection,
 }
 
 impl Default for RainbowEffect {
@@ -33,18 +45,17 @@ impl Default for RainbowEffect {
             cycle_duration: Duration::from_millis(DEFAULT_CYCLE_MS),
             value: 255,
             saturation: 255,
+            direction: RainbowDirection::Forward,
         }
     }
 }
 
 impl RainbowEffect {
     /// Create a new rainbow effect with custom parameters
-    pub fn new(cycle_duration: Duration, value: u8, saturation: u8) -> Self {
-        Self {
-            cycle_duration,
-            value,
-            saturation,
-        }
+    #[must_use]
+    pub fn with_direction(mut self, direction: RainbowDirection) -> Self {
+        self.direction = direction;
+        self
     }
 
     /// Set the cycle duration
@@ -96,15 +107,19 @@ impl Effect for RainbowEffect {
             val: self.value,
         };
 
-        let center_len = center_of(leds);
-
-        // Fill first half with three-point gradient using fixed-point math
-        {
-            let (first_half, _) = leds.split_at_mut(center_len);
-            fill_gradient_three_fp(first_half, c1, c2, c3);
+        match self.direction {
+            RainbowDirection::Forward => {
+                fill_gradient_three_fp(leds, c1, c2, c3);
+            }
+            RainbowDirection::Backward => {
+                fill_gradient_three_fp(leds, c2, c1, c3);
+            }
+            RainbowDirection::Mirrored => {
+                let center_len = center_of(leds);
+                let (first_half, _) = leds.split_at_mut(center_len);
+                fill_gradient_three_fp(first_half, c1, c2, c3);
+                mirror_half(leds);
+            }
         }
-
-        // Mirror to second half
-        mirror_half(leds);
     }
 }
