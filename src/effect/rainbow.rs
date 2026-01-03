@@ -38,7 +38,7 @@ impl Default for RainbowEffect {
 }
 
 impl RainbowEffect {
-    /// Create a new rainbow mode with custom parameters
+    /// Create a new rainbow effect with custom parameters
     pub fn new(cycle_duration: Duration, value: u8, saturation: u8) -> Self {
         Self {
             cycle_duration,

@@ -37,6 +37,8 @@ impl StaticColorEffect {
 }
 
 impl Effect for StaticColorEffect {
+    const PRECISE_COLORS: bool = true;
+
     fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         self.color.tick(now);
 

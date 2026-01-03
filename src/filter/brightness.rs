@@ -9,7 +9,7 @@
 
 use embassy_time::{Duration, Instant};
 
-#[cfg(feature = "log")]
+#[cfg(feature = "esp32-log")]
 use esp_println::println;
 
 use super::Filter;
@@ -18,6 +18,30 @@ use crate::{
     math8::{U8Adjuster, scale8},
     transition::ValueTransition,
 };
+
+/// Range of brightness values
+#[derive(Debug, Clone, Copy)]
+pub struct BrightnessRange {
+    min: u8,
+    max: u8,
+}
+
+impl BrightnessRange {
+    /// Create a new brightness range
+    pub const fn new(min: u8, max: u8) -> Self {
+        Self { min, max }
+    }
+
+    /// Get the minimum brightness value
+    pub const fn min(self) -> u8 {
+        self.min
+    }
+
+    /// Get the maximum brightness value (scale)
+    pub const fn max(self) -> u8 {
+        self.max
+    }
+}
 
 /// Configuration for the brightness filter
 #[derive(Debug, Clone)]
@@ -57,9 +81,9 @@ impl BrightnessFilter {
         let brightness = brightness.saturating_sub(self.min_brightness);
         let corrected_brightness =
             scale8(brightness, self.scale).saturating_add(self.min_brightness);
-        #[cfg(feature = "log")]
+        #[cfg(feature = "esp32-log")]
         println!(
-            "[BrightnessEffect.set] setting brightness to {:?} ({:?})",
+            "[BrightnessFilter.set] setting brightness to {:?} ({:?})",
             brightness, corrected_brightness
         );
         self.brightness.set(corrected_brightness, duration, now);

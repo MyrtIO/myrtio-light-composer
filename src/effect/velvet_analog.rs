@@ -1,4 +1,4 @@
-//! Velvet Analog mode
+//! Velvet Analog effect
 //!
 //! Calm “premium” gradient derived from a single selected color.
 //! Uses a small analog hue shift and very gentle breathing + midpoint drift.
@@ -42,7 +42,7 @@ impl VelvetAnalogEffect {
     }
 
     fn breathe_scale(&self, now: Instant) -> u8 {
-        let period_ms = self.breathe_period.as_millis().max(1);
+        let period_ms = self.breathe_period.as_millis().max(1u64);
         let progress_ms = now.as_millis() % period_ms;
         #[allow(clippy::cast_possible_truncation)]
         let p = ((progress_ms * 255) / period_ms) as u8;
@@ -58,9 +58,9 @@ impl VelvetAnalogEffect {
         let last = leds.len() - 1;
 
         // Drift range: keep subtle (few pixels) and safe for small strips.
-        let range = core::cmp::min(12usize, core::cmp::max(1usize, leds.len() / 10));
+        let range = (leds.len() / 10).clamp(1usize, 12usize);
 
-        let period_ms = self.drift_period.as_millis().max(1);
+        let period_ms = self.drift_period.as_millis().max(1u64);
         let progress_ms = now.as_millis() % period_ms;
         #[allow(clippy::cast_possible_truncation)]
         let p = ((progress_ms * 255) / period_ms) as u8;

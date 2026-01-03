@@ -13,7 +13,7 @@ pub(crate) trait Filter {
 }
 
 use brightness::BrightnessFilter;
-pub use brightness::BrightnessFilterConfig;
+pub use brightness::{BrightnessFilterConfig, BrightnessRange};
 pub(crate) use color_correction::ColorCorrection;
 
 #[derive(Debug, Clone)]
@@ -21,7 +21,7 @@ pub struct FilterProcessorConfig {
     /// Brightness filter
     pub brightness: BrightnessFilterConfig,
     /// Color correction
-    pub color_correction: Option<Rgb>,
+    pub color_correction: Rgb,
 }
 
 /// Filter processor - applies post-processing to frames
@@ -33,33 +33,23 @@ pub(crate) struct FilterProcessor {
     /// Brightness filter
     pub brightness: BrightnessFilter,
     /// Color correction filter
-    pub color_correction: Option<ColorCorrection>,
+    pub color_correction: ColorCorrection,
 }
 
 impl FilterProcessor {
     /// Create a new output processor with default settings
     pub(crate) fn new(config: &FilterProcessorConfig) -> Self {
         let brightness = BrightnessFilter::new(0, &config.brightness);
-        let color_correction = config.color_correction.map(ColorCorrection::new);
+        let color_correction = ColorCorrection::new(config.color_correction);
         Self {
             brightness,
             color_correction,
         }
     }
 
-    /// Apply all processing to a frame
-    pub(crate) fn apply(&mut self, frame: &mut [Rgb]) {
-        if let Some(color_correction) = &mut self.color_correction {
-            color_correction.apply(frame);
-        }
-        self.brightness.apply(frame);
-    }
-
     /// Tick the filters
     pub(crate) fn tick(&mut self, now: Instant) {
         self.brightness.tick(now);
-        if let Some(color_correction) = &mut self.color_correction {
-            color_correction.tick(now);
-        }
+        self.color_correction.tick(now);
     }
 }

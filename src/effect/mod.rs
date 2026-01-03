@@ -1,7 +1,7 @@
-//! Mode system with compile-time known mode variants
+//! Effect system with compile-time known effect variants
 //!
-//! All modes are stored in an enum to avoid heap allocations.
-//! Each mode implements the `Mode` trait.
+//! All effects are stored in an enum to avoid heap allocations.
+//! Each effect implements the `Effect` trait.
 
 mod rainbow;
 mod static_color;
@@ -23,6 +23,11 @@ const EFFECT_ID_RAINBOW: u8 = 1;
 const EFFECT_ID_VELVET_ANALOG: u8 = 2;
 
 pub trait Effect {
+    /// Sets if effect requires precise (corrected) colors
+    /// 
+    /// This option affects brightness, so it disabled by default
+    const PRECISE_COLORS: bool = false;
+
     /// Render a single frame
     fn render(&mut self, now: Instant, leds: &mut [Rgb]);
 
@@ -98,16 +103,28 @@ impl EffectId {
 }
 
 impl EffectSlot {
-    /// Render the current mode
+    /// Returns if effect requires precise (corrected) colors
+    ///
+    /// Derived from each effect's `Effect::PRECISE_COLORS` constant.
+    /// This option affects brightness, so it is disabled by default.
+    pub fn requires_precise_colors(&self) -> bool {
+        match self {
+            Self::Rainbow(_) => RainbowEffect::PRECISE_COLORS,
+            Self::Static(_) => StaticColorEffect::PRECISE_COLORS,
+            Self::VelvetAnalog(_) => VelvetAnalogEffect::PRECISE_COLORS,
+        }
+    }
+
+    /// Render the current effect
     pub fn render(&mut self, now: Instant, leds: &mut [Rgb]) {
         match self {
             Self::Rainbow(effect) => effect.render(now, leds),
             Self::Static(effect) => effect.render(now, leds),
             Self::VelvetAnalog(effect) => effect.render(now, leds),
-        };
+        }
     }
 
-    /// Reset the mode state
+    /// Reset the effect state
     pub fn reset(&mut self) {
         match self {
             Self::Rainbow(effect) => Effect::reset(effect),
@@ -116,7 +133,7 @@ impl EffectSlot {
         }
     }
 
-    /// Get the mode ID for external observation
+    /// Get the effect ID for external observation
     pub fn id(&self) -> EffectId {
         match self {
             Self::Rainbow(_) => EffectId::Rainbow,
@@ -125,20 +142,20 @@ impl EffectSlot {
         }
     }
 
-    /// Update the color of the current mode with optional transition.
+    /// Update the color of the current effect with optional transition.
     pub fn set_color(&mut self, color: Rgb, duration: Duration, now: Instant) {
         match self {
-            Self::Static(mode) => mode.set_color(color, duration, now),
-            Self::VelvetAnalog(mode) => mode.set_color(color, duration, now),
-            _ => {}
+            Self::Static(effect) => effect.set_color(color, duration, now),
+            Self::VelvetAnalog(effect) => effect.set_color(color, duration, now),
+            Self::Rainbow(_effect) => {}
         }
     }
 
     pub fn is_transitioning(&self) -> bool {
         match self {
-            Self::Static(mode) => mode.is_transitioning(),
-            Self::VelvetAnalog(mode) => mode.is_transitioning(),
-            _ => false,
+            Self::Static(effect) => effect.is_transitioning(),
+            Self::VelvetAnalog(effect) => effect.is_transitioning(),
+            Self::Rainbow(_effect) => false,
         }
     }
 }

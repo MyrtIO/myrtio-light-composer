@@ -10,7 +10,7 @@ use crate::effect::EffectId;
 pub enum Operation {
     /// Set brightness
     SetBrightness(u8),
-    /// Switch to a new mode with fade transition
+    /// Switch to a new effect with fade transition
     SwitchEffect(EffectId),
     /// Update effect color
     SetColor(Rgb),
@@ -73,15 +73,15 @@ impl<const N: usize> OperationStack<N> {
         self.push(Operation::SetColor(color))
     }
 
-    /// Push a mode operation onto the stack
-    pub fn push_mode(&mut self, mode: EffectId, brightness: u8) -> Result<(), Operation> {
+    /// Push a effect operation onto the stack
+    pub fn push_effect(&mut self, id: EffectId, brightness: u8) -> Result<(), Operation> {
         let free_slots = self.inner.capacity() - self.inner.len();
-        let mode_op = Operation::SwitchEffect(mode);
+        let effect_op = Operation::SwitchEffect(id);
         if free_slots < 3 {
-            return Err(mode_op);
+            return Err(effect_op);
         }
         self.push(Operation::SetBrightness(0))?;
-        self.push(mode_op)?;
+        self.push(effect_op)?;
         self.push(Operation::SetBrightness(brightness))?;
 
         Ok(())

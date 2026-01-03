@@ -1,5 +1,4 @@
 mod tests {
-    use embassy_time::Duration;
     use myrtio_light_composer::color::{Rgb, blend_colors, kelvin_to_rgb, mirror_half};
 
     const RED: Rgb = Rgb { r: 255, g: 0, b: 0 };
@@ -54,7 +53,7 @@ mod tests {
 
     #[test]
     fn test_kelvin_to_rgb() {
-        assert_eq!(kelvin_to_rgb(1000), (255, 136, 0));
-        assert_eq!(kelvin_to_rgb(40000), (151, 185, 255));
+        assert_eq!(kelvin_to_rgb(1000), Rgb { r: 255, g: 136, b: 0 });
+        assert_eq!(kelvin_to_rgb(40000), Rgb { r: 151, g: 185, b: 255 });
     }
 }

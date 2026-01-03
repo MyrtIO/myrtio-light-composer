@@ -1,24 +1,43 @@
-//! Desktop preview app for myrtio-light-composer modes
+//! Desktop preview app for myrtio-light-composer effects
 //!
-//! Renders LED strip modes in a window with interactive controls.
+//! Renders LED strip effects in a window with interactive controls.
+//! Uses the new Renderer + IntentChannel API for all state changes.
 
-use std::time::Instant;
+use std::time::Instant as StdInstant;
 
 use eframe::egui;
-use embassy_time::Instant as EmbassyInstant;
 use myrtio_light_composer::{
-    mode::{ModeId, ModeSlot},
-    ws2812_lut, Rgb,
+    Duration, EffectId, FilterProcessorConfig, Instant, IntentChannel, IntentSender,
+    LightChangeIntent, LightEngineConfig, LightStateIntent, Renderer, Rgb, TransitionTimings,
+    bounds::RenderingBounds, filter::BrightnessFilterConfig, ws2812_lut,
 };
 
-/// Number of LEDs in the simulated strip
-const LED_COUNT: usize = 60;
+/// Maximum number of LEDs the renderer supports
+const MAX_LEDS: usize = 180;
+
+/// Default number of LEDs in the simulated strip
+const DEFAULT_LED_COUNT: usize = 60;
 
 /// Size of each LED rectangle in pixels
 const LED_SIZE: f32 = 12.0;
 
 /// Gap between LEDs
 const LED_GAP: f32 = 2.0;
+
+/// Intent channel size
+const INTENT_CHANNEL_SIZE: usize = 16;
+
+/// Static intent channel for communication between UI and renderer
+static INTENTS_CHANNEL: IntentChannel<INTENT_CHANNEL_SIZE> =
+    IntentChannel::<INTENT_CHANNEL_SIZE>::new();
+
+/// Default transition timings for preview (faster than production for responsiveness)
+const PREVIEW_TRANSITION_TIMINGS: TransitionTimings = TransitionTimings {
+    fade_out: Duration::from_millis(200),
+    fade_in: Duration::from_millis(150),
+    color_change: Duration::from_millis(100),
+    brightness: Duration::from_millis(100),
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Layout {
@@ -31,8 +50,8 @@ enum Layout {
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([900.0, 400.0])
-            .with_title("Light Preview"),
+            .with_inner_size([900.0, 600.0])
+            .with_title("Light Composer Preview"),
         ..Default::default()
     };
 
@@ -44,29 +63,33 @@ fn main() -> eframe::Result<()> {
 }
 
 struct PreviewApp {
-    /// Current mode slot
-    mode: ModeSlot,
-    /// Currently selected mode ID (UI state)
-    mode_id: ModeId,
+    /// The renderer instance
+    renderer: Renderer<'static, MAX_LEDS, INTENT_CHANNEL_SIZE>,
+    /// Intent sender for UI changes
+    intent_sender: IntentSender<'static, INTENT_CHANNEL_SIZE>,
+
+    // UI state (tracked to detect changes and send intents)
+    /// Currently selected effect ID
+    effect_id: EffectId,
     /// Synthetic time in milliseconds
     t_ms: u64,
     /// Wall-clock reference for delta time
-    last_frame: Instant,
+    last_frame: StdInstant,
     /// Whether animation is playing
     playing: bool,
     /// Time scale multiplier (1.0 = realtime)
     time_scale: f32,
     /// Brightness (0-255)
     brightness: u8,
-    /// Color for static/velvet modes (RGB)
+    /// Color for static/velvet effects (RGB)
     color: [u8; 3],
-    /// Whether to apply WS2812 gamma correction
+    /// Whether to apply WS2812 gamma correction (post-process)
     apply_gamma: bool,
-    /// LED pixel size
+    /// LED pixel size for display
     led_size: f32,
     /// Number of LEDs to display
     led_count: usize,
-    /// Preview layout mode
+    /// Preview layout effect
     layout: Layout,
     /// How many identical lines to draw (used in `Layout::Lines`)
     lines: usize,
@@ -74,91 +97,105 @@ struct PreviewApp {
 
 impl PreviewApp {
     fn new() -> Self {
-        let color = Rgb {
+        let initial_color = Rgb {
             r: 255,
             g: 180,
             b: 100,
         };
-        let mode_id = ModeId::Rainbow;
+        let initial_effect = EffectId::Rainbow;
+        let initial_brightness: u8 = 255;
+        let initial_led_count: u8 = DEFAULT_LED_COUNT as u8;
+
+        let config = LightEngineConfig {
+            effect: initial_effect,
+            bounds: RenderingBounds {
+                start: 0,
+                end: initial_led_count,
+            },
+            filters: FilterProcessorConfig {
+                brightness: BrightnessFilterConfig {
+                    min_brightness: 0,
+                    scale: 255,
+                    adjust: None,
+                },
+                color_correction: Rgb {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                },
+            },
+            timings: PREVIEW_TRANSITION_TIMINGS,
+            brightness: initial_brightness,
+            color: initial_color,
+        };
+
+        let renderer =
+            Renderer::<MAX_LEDS, INTENT_CHANNEL_SIZE>::new(INTENTS_CHANNEL.receiver(), &config);
+        let intent_sender = INTENTS_CHANNEL.sender();
+
         Self {
-            mode: mode_id.to_mode_slot(color),
-            mode_id,
+            renderer,
+            intent_sender,
+            effect_id: initial_effect,
             t_ms: 0,
-            last_frame: Instant::now(),
+            last_frame: StdInstant::now(),
             playing: true,
             time_scale: 1.0,
-            brightness: 255,
-            color: [color.r, color.g, color.b],
+            brightness: initial_brightness,
+            color: [initial_color.r, initial_color.g, initial_color.b],
             apply_gamma: false,
             led_size: LED_SIZE,
-            led_count: LED_COUNT,
+            led_count: DEFAULT_LED_COUNT,
             layout: Layout::Strip,
             lines: 6,
         }
     }
 
-    fn set_mode(&mut self, mode_id: ModeId) {
-        self.mode_id = mode_id;
-        let color = Rgb {
-            r: self.color[0],
-            g: self.color[1],
-            b: self.color[2],
-        };
-        self.mode = mode_id.to_mode_slot(color);
+    /// Send an effect change intent
+    fn send_effect_change(&self, effect_id: EffectId) {
+        let intent = LightChangeIntent::State(LightStateIntent {
+            effect_id: Some(effect_id),
+            ..Default::default()
+        });
+        let _ = self.intent_sender.try_send(intent);
     }
 
+    /// Send a color change intent
+    fn send_color_change(&self, r: u8, g: u8, b: u8) {
+        let intent = LightChangeIntent::State(LightStateIntent {
+            color: Some(Rgb { r, g, b }),
+            ..Default::default()
+        });
+        let _ = self.intent_sender.try_send(intent);
+    }
+
+    /// Send a brightness change intent
+    fn send_brightness_change(&self, brightness: u8) {
+        let intent = LightChangeIntent::State(LightStateIntent {
+            brightness: Some(brightness),
+            ..Default::default()
+        });
+        let _ = self.intent_sender.try_send(intent);
+    }
+
+    /// Send a bounds change intent
+    fn send_bounds_change(&self, led_count: u8) {
+        let intent = LightChangeIntent::Bounds(RenderingBounds {
+            start: 0,
+            end: led_count,
+        });
+        let _ = self.intent_sender.try_send(intent);
+    }
+
+    /// Reset time to zero
     fn reset_time(&mut self) {
         self.t_ms = 0;
-        self.last_frame = Instant::now();
+        self.last_frame = StdInstant::now();
     }
 
-    fn render_frame(&mut self) -> Vec<Rgb> {
-        let now = EmbassyInstant::from_millis(self.t_ms);
-
-        // Dispatch based on LED count (use a reasonable max)
-        let frame: Vec<Rgb> = match self.led_count {
-            1..=30 => self.render_with_count::<30>(now),
-            31..=60 => self.render_with_count::<60>(now),
-            61..=120 => self.render_with_count::<120>(now),
-            _ => self.render_with_count::<180>(now),
-        };
-
-        // Truncate to actual count and apply post-processing
-        frame
-            .into_iter()
-            .take(self.led_count)
-            .map(|mut pixel| {
-                // Apply brightness
-                pixel.r = scale8(pixel.r, self.brightness);
-                pixel.g = scale8(pixel.g, self.brightness);
-                pixel.b = scale8(pixel.b, self.brightness);
-                // Apply gamma if enabled
-                if self.apply_gamma {
-                    pixel.r = ws2812_lut(pixel.r);
-                    pixel.g = ws2812_lut(pixel.g);
-                    pixel.b = ws2812_lut(pixel.b);
-                }
-                pixel
-            })
-            .collect()
-    }
-
-    fn render_with_count<const N: usize>(&mut self, now: EmbassyInstant) -> Vec<Rgb> {
-        let frame: [Rgb; N] = self.mode.render(now);
-        frame.to_vec()
-    }
-}
-
-/// Scale a u8 value by another u8 (0-255 treated as 0.0-1.0)
-#[inline]
-fn scale8(value: u8, scale: u8) -> u8 {
-    ((u16::from(value) * u16::from(scale)) >> 8) as u8
-}
-
-impl eframe::App for PreviewApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Update time
-        let now = Instant::now();
+    /// Update synthetic time based on wall clock and time scale
+    fn update_time(&mut self) {
+        let now = StdInstant::now();
         let delta = now.duration_since(self.last_frame);
         self.last_frame = now;
 
@@ -174,41 +211,71 @@ impl eframe::App for PreviewApp {
             let delta_ms = delta_ms_f64 as u64;
             self.t_ms = self.t_ms.wrapping_add(delta_ms);
         }
+    }
 
-        // Render the frame
-        let frame = self.render_frame();
+}
+
+impl eframe::App for PreviewApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Update synthetic time
+        self.update_time();
+
+        // Render the frame using synthetic time
+        let now = Instant::from_millis(self.t_ms);
+        let rendered_frame = self.renderer.render(now);
+
+        // Take only the LEDs we want to display and optionally apply gamma
+        let apply_gamma = self.apply_gamma;
+        let frame: Vec<Rgb> = rendered_frame
+            .iter()
+            .take(self.led_count)
+            .map(|&pixel| {
+                if apply_gamma {
+                    Rgb {
+                        r: ws2812_lut(pixel.r),
+                        g: ws2812_lut(pixel.g),
+                        b: ws2812_lut(pixel.b),
+                    }
+                } else {
+                    pixel
+                }
+            })
+            .collect();
 
         // Request continuous repaint for animation
         ctx.request_repaint();
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Light Preview");
+            ui.heading("Light Composer Preview");
             ui.add_space(8.0);
 
-            // Controls
+            // === Row 1: Effect selector + Play/Pause/Reset ===
             ui.horizontal(|ui| {
-                // Mode selector (use temp variable to detect changes reliably)
-                ui.label("Mode:");
-                let mut selected_mode = self.mode_id;
-                egui::ComboBox::from_id_salt("mode_selector")
-                    .selected_text(self.mode_id.as_str())
+                ui.label("Effect:");
+                let mut selected_effect = self.effect_id;
+                egui::ComboBox::from_id_salt("effect_selector")
+                    .selected_text(self.effect_id.as_str())
                     .show_ui(ui, |ui| {
-                        ui.selectable_value(&mut selected_mode, ModeId::Rainbow, "rainbow");
-                        ui.selectable_value(&mut selected_mode, ModeId::Static, "static");
+                        ui.selectable_value(&mut selected_effect, EffectId::Rainbow, "rainbow");
+                        ui.selectable_value(&mut selected_effect, EffectId::Static, "static");
                         ui.selectable_value(
-                            &mut selected_mode,
-                            ModeId::VelvetAnalog,
+                            &mut selected_effect,
+                            EffectId::VelvetAnalog,
                             "velvet_analog",
                         );
                     });
-                if selected_mode != self.mode_id {
-                    self.set_mode(selected_mode);
+                if selected_effect != self.effect_id {
+                    self.effect_id = selected_effect;
+                    self.send_effect_change(selected_effect);
                 }
 
                 ui.add_space(16.0);
 
                 // Play/Pause
-                if ui.button(if self.playing { "⏸ Pause" } else { "▶ Play" }).clicked() {
+                if ui
+                    .button(if self.playing { "⏸ Pause" } else { "▶ Play" })
+                    .clicked()
+                {
                     self.playing = !self.playing;
                 }
 
@@ -219,6 +286,7 @@ impl eframe::App for PreviewApp {
 
             ui.add_space(8.0);
 
+            // === Row 2: Layout selector ===
             ui.horizontal(|ui| {
                 ui.label("Layout:");
                 ui.selectable_value(&mut self.layout, Layout::Strip, "strip");
@@ -233,48 +301,50 @@ impl eframe::App for PreviewApp {
 
             ui.add_space(8.0);
 
+            // === Row 3: Color + Brightness ===
             ui.horizontal(|ui| {
-                // Color picker (for static/velvet modes)
                 ui.label("Color:");
-                if ui.color_edit_button_srgb(&mut self.color).changed() {
-                    // Update mode color
-                    let rgb = Rgb {
-                        r: self.color[0],
-                        g: self.color[1],
-                        b: self.color[2],
-                    };
-                    self.mode = self.mode_id.to_mode_slot(rgb);
+                let old_color = self.color;
+                if ui.color_edit_button_srgb(&mut self.color).changed() && old_color != self.color {
+                    self.send_color_change(self.color[0], self.color[1], self.color[2]);
                 }
 
                 ui.add_space(16.0);
 
-                // Brightness
                 ui.label("Brightness:");
+                let old_brightness = self.brightness;
                 ui.add(egui::Slider::new(&mut self.brightness, 0u8..=255u8));
+                if self.brightness != old_brightness {
+                    self.send_brightness_change(self.brightness);
+                }
             });
 
             ui.add_space(8.0);
 
+            // === Row 4: Speed + LED count + LED size ===
             ui.horizontal(|ui| {
-                // Time scale
                 ui.label("Speed:");
                 ui.add(egui::Slider::new(&mut self.time_scale, 0.1..=5.0).logarithmic(true));
 
                 ui.add_space(16.0);
 
-                // LED count
                 ui.label("LEDs:");
-                ui.add(egui::Slider::new(&mut self.led_count, 1usize..=180usize));
+                let old_led_count = self.led_count;
+                ui.add(egui::Slider::new(&mut self.led_count, 1usize..=MAX_LEDS));
+                if self.led_count != old_led_count {
+                    #[allow(clippy::cast_possible_truncation)]
+                    self.send_bounds_change(self.led_count as u8);
+                }
 
                 ui.add_space(16.0);
 
-                // LED size
                 ui.label("Size:");
                 ui.add(egui::Slider::new(&mut self.led_size, 4.0..=32.0));
             });
 
             ui.add_space(8.0);
 
+            // === Row 5: Gamma checkbox + Time display ===
             ui.horizontal(|ui| {
                 ui.checkbox(&mut self.apply_gamma, "WS2812 Gamma");
 
@@ -287,7 +357,7 @@ impl eframe::App for PreviewApp {
 
             ui.add_space(16.0);
 
-            // Draw LEDs
+            // === LED Display ===
             let available_width = ui.available_width();
             let led_pitch = self.led_size + LED_GAP;
 
@@ -321,11 +391,9 @@ impl eframe::App for PreviewApp {
                     }
                 }
                 Layout::Lines => {
-                    // In Lines layout we render a single line (the strip) and repeat it for each line.
                     let per_line = self.led_count.max(1);
                     let line_count = self.lines.max(1);
 
-                    // How many columns (lines) can we fit per visual row?
                     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
                     let lines_per_row = (available_width / led_pitch).floor().max(1.0) as usize;
                     let block_rows = line_count.div_ceil(lines_per_row);
@@ -339,7 +407,6 @@ impl eframe::App for PreviewApp {
                     );
                     let origin = response.rect.min;
 
-                    // Draw repeated lines: same colors and same length as the first line.
                     #[allow(clippy::cast_precision_loss)]
                     for line in 0..line_count {
                         let block_row = line / lines_per_row;

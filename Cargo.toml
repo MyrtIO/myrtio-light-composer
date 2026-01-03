@@ -1,7 +1,7 @@
 [package]
 name = "myrtio-light-composer"
 description = "1D LED rendering library"
-version = "0.5.0"
+version = "0.6.0"
 publish = true
 license = "MIT"
 edition = "2024"
@@ -9,19 +9,24 @@ rust-version = "1.90"
 
 [lib]
 name = "myrtio_light_composer"
-harness = false
 
 [dependencies]
-embassy-sync = "0.7.2"
+critical-section = "1.2"
 embassy-time = "0.5.0"
-smart-leds = "0.4.0"
 heapless = "0.8"
-esp-println = { version = "0.16.1", optional = true, features = ["esp32"] }
 libm = "0.2.15"
+smart-leds = "0.4.0"
+
+# Optional dependencies
+esp-println = { version = "0.16.1", optional = true, features = ["esp32"] }
+
+[dev-dependencies]
+critical-section = { version = "1.2", features = ["std"] }
+embassy-time = { version = "0.5.0", features = ["std"] }
 
 [features]
 default = []
-log = ["dep:esp-println"]
+esp32-log = ["dep:esp-println"]
 
 
 [lints.rust]

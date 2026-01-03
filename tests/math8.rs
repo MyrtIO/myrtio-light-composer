@@ -1,6 +1,5 @@
 mod tests {
-    use embassy_time::Duration;
-    use myrtio_light_composer::math8::{blend8, progress8, scale8};
+    use myrtio_light_composer::{Duration, math8::{blend8, progress8, scale8}};
 
     #[test]
     fn test_scale8() {
