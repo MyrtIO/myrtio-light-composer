@@ -30,4 +30,19 @@ mod tests {
     fn test_effect_id_as_str_lava_lamp() {
         assert_eq!(EffectId::LavaLamp.as_str(), "lava_lamp");
     }
+
+    #[test]
+    fn test_effect_id_parse_sunset() {
+        assert_eq!(EffectId::parse_from_str("sunset"), Some(EffectId::Sunset));
+    }
+
+    #[test]
+    fn test_effect_id_from_raw_sunset() {
+        assert_eq!(EffectId::from_raw(8), Some(EffectId::Sunset));
+    }
+
+    #[test]
+    fn test_effect_id_as_str_sunset() {
+        assert_eq!(EffectId::Sunset.as_str(), "sunset");
+    }
 }

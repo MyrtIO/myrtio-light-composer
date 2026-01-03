@@ -38,6 +38,17 @@ const LAVA_LAMP_PALETTE: [Rgb; 5] = hex_palette![
     0xF2039F  // Purple accent
 ];
 
+// Sunset palette: night blue → purple/magenta → orange → warm yellow
+#[allow(clippy::unreadable_literal)]
+const SUNSET_PALETTE: [Rgb; 6] = hex_palette![
+    0x0B1026, // Night Sky
+    0x2B1B54, // Deep Purple
+    0x8C2155, // Magenta
+    0xD94E1F, // Red-Orange
+    0xF28C22, // Orange
+    0xFFD878  // Sun Yellow
+];
+
 // Balanced tuning: visible motion, still premium
 const LAYER1_PERIOD_MS: u64 = 8_000; // Slow base layer
 const LAYER2_PERIOD_MS: u64 = 5_000; // Faster mid layer
@@ -61,6 +72,8 @@ pub enum FlowVariant {
     Aurora,
     /// Lava lamp: warm red/orange/purple tones
     LavaLamp,
+    /// Sunset: night blue → purple/magenta → orange → warm yellow
+    Sunset,
 }
 
 /// Flow effect with layered flowing gradients
@@ -153,6 +166,7 @@ impl FlowEffect {
         match self.variant {
             FlowVariant::Aurora => &AURORA_PALETTE,
             FlowVariant::LavaLamp => &LAVA_LAMP_PALETTE,
+            FlowVariant::Sunset => &SUNSET_PALETTE,
         }
     }
 

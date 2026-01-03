@@ -22,6 +22,7 @@ const EFFECT_NAME_RAINBOW_LONG_INVERSE: &str = "rainbow_long_inverse";
 const EFFECT_NAME_RAINBOW_SHORT_INVERSE: &str = "rainbow_short_inverse";
 const EFFECT_NAME_AURORA: &str = "aurora";
 const EFFECT_NAME_LAVA_LAMP: &str = "lava_lamp";
+const EFFECT_NAME_SUNSET: &str = "sunset";
 
 const EFFECT_ID_STATIC: u8 = 0;
 const EFFECT_ID_RAINBOW_MIRRORED: u8 = 1;
@@ -31,6 +32,7 @@ const EFFECT_ID_RAINBOW_LONG_INVERSE: u8 = 4;
 const EFFECT_ID_RAINBOW_SHORT_INVERSE: u8 = 5;
 const EFFECT_ID_AURORA: u8 = 6;
 const EFFECT_ID_LAVA_LAMP: u8 = 7;
+const EFFECT_ID_SUNSET: u8 = 8;
 
 pub trait Effect {
     /// Sets if effect requires precise (corrected) colors
@@ -65,6 +67,8 @@ pub enum EffectSlot {
     Aurora(FlowEffect),
     /// Lava lamp effect with warm flowing gradients
     LavaLamp(FlowEffect),
+    /// Sunset effect with flowing gradients
+    Sunset(FlowEffect),
 }
 
 /// Known effect ids that can be requested.
@@ -79,6 +83,7 @@ pub enum EffectId {
     RainbowShortInverse = EFFECT_ID_RAINBOW_SHORT_INVERSE,
     Aurora              = EFFECT_ID_AURORA,
     LavaLamp            = EFFECT_ID_LAVA_LAMP,
+    Sunset              = EFFECT_ID_SUNSET,
 }
 
 impl Default for EffectSlot {
@@ -98,6 +103,7 @@ impl EffectId {
             EFFECT_ID_RAINBOW_SHORT_INVERSE => Self::RainbowShortInverse,
             EFFECT_ID_AURORA => Self::Aurora,
             EFFECT_ID_LAVA_LAMP => Self::LavaLamp,
+            EFFECT_ID_SUNSET => Self::Sunset,
             _ => return None,
         })
     }
@@ -124,6 +130,7 @@ impl EffectId {
             Self::LavaLamp => {
                 EffectSlot::LavaLamp(FlowEffect::new(FlowVariant::LavaLamp))
             }
+            Self::Sunset => EffectSlot::Sunset(FlowEffect::new(FlowVariant::Sunset)),
         }
     }
 
@@ -137,6 +144,7 @@ impl EffectId {
             Self::RainbowShortInverse => EFFECT_NAME_RAINBOW_SHORT_INVERSE,
             Self::Aurora => EFFECT_NAME_AURORA,
             Self::LavaLamp => EFFECT_NAME_LAVA_LAMP,
+            Self::Sunset => EFFECT_NAME_SUNSET,
         }
     }
 
@@ -150,6 +158,7 @@ impl EffectId {
             EFFECT_NAME_RAINBOW_SHORT_INVERSE => Some(Self::RainbowShortInverse),
             EFFECT_NAME_AURORA => Some(Self::Aurora),
             EFFECT_NAME_LAVA_LAMP => Some(Self::LavaLamp),
+            EFFECT_NAME_SUNSET => Some(Self::Sunset),
             _ => None,
         }
     }
@@ -166,7 +175,9 @@ impl EffectSlot {
             Self::RainbowForward(_) => RainbowEffect::PRECISE_COLORS,
             Self::RainbowBackward(_) => RainbowEffect::PRECISE_COLORS,
             Self::Static(_) => StaticColorEffect::PRECISE_COLORS,
-            Self::Aurora(_) | Self::LavaLamp(_) => FlowEffect::PRECISE_COLORS,
+            Self::Aurora(_) | Self::LavaLamp(_) | Self::Sunset(_) => {
+                FlowEffect::PRECISE_COLORS
+            }
         }
     }
 
@@ -177,7 +188,7 @@ impl EffectSlot {
             Self::RainbowForward(effect) => effect.render(now, leds),
             Self::RainbowBackward(effect) => effect.render(now, leds),
             Self::Static(effect) => effect.render(now, leds),
-            Self::Aurora(effect) | Self::LavaLamp(effect) => {
+            Self::Aurora(effect) | Self::LavaLamp(effect) | Self::Sunset(effect) => {
                 effect.render(now, leds);
             }
         }
@@ -190,7 +201,9 @@ impl EffectSlot {
             Self::RainbowForward(effect) => Effect::reset(effect),
             Self::RainbowBackward(effect) => Effect::reset(effect),
             Self::Static(effect) => Effect::reset(effect),
-            Self::Aurora(effect) | Self::LavaLamp(effect) => Effect::reset(effect),
+            Self::Aurora(effect)
+            | Self::LavaLamp(effect)
+            | Self::Sunset(effect) => Effect::reset(effect),
         }
     }
 
@@ -203,6 +216,7 @@ impl EffectSlot {
             Self::Static(_) => EffectId::Static,
             Self::Aurora(_) => EffectId::Aurora,
             Self::LavaLamp(_) => EffectId::LavaLamp,
+            Self::Sunset(_) => EffectId::Sunset,
         }
     }
 
@@ -222,7 +236,8 @@ impl EffectSlot {
             | Self::RainbowForward(_)
             | Self::RainbowBackward(_)
             | Self::Aurora(_)
-            | Self::LavaLamp(_) => false,
+            | Self::LavaLamp(_)
+            | Self::Sunset(_) => false,
         }
     }
 }
