@@ -387,6 +387,11 @@ impl eframe::App for PreviewApp {
                                 EffectId::Aurora,
                                 "aurora",
                             );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::LavaLamp,
+                                "lava_lamp",
+                            );
                         });
                     if selected_effect != self.effect_id {
                         self.effect_id = selected_effect;

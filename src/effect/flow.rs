@@ -1,8 +1,12 @@
-//! Aurora effect
+//! Flow effect with palette-based presets
 //!
-//! A premium-looking effect with smooth flowing multi-layer gradients,
-//! simulating the organic motion of northern lights.
-//! Uses a fixed built-in aurora palette (ignores selected color).
+//! A premium-looking effect with smooth flowing multi-layer gradients.
+//! Uses layered value-noise to create organic motion similar to flowing liquids
+//! or northern lights.
+//!
+//! Presets:
+//! - `Aurora`: Cool blue/teal/violet palette simulating northern lights.
+//! - `LavaLamp`: Warm red/orange/purple palette simulating lava lamp motion.
 
 use embassy_time::Instant;
 
@@ -12,35 +16,23 @@ use crate::{
     math8::{blend8, ease_in_out_quad, scale8},
 };
 
-// Aurora palette: deep blue -> teal -> green -> cyan -> violet -> pink
-// Hand-picked for a natural aurora look (blue/green/teal + pink/violet).
-const PALETTE: [Rgb; 6] = [
-    Rgb { r: 0, g: 20, b: 80 }, // Deep blue
-    Rgb {
-        r: 0,
-        g: 95,
-        b: 120,
-    }, // Teal (stronger)
-    Rgb {
-        r: 20,
-        g: 170,
-        b: 95,
-    }, // Green (kept, but muted/teal-leaning)
-    Rgb {
-        r: 0,
-        g: 160,
-        b: 200,
-    }, // Cyan/teal
-    Rgb {
-        r: 110,
-        g: 30,
-        b: 170,
-    }, // Violet
-    Rgb {
-        r: 200,
-        g: 50,
-        b: 170,
-    }, // Pink/magenta
+// Aurora palette: cool blue/teal/violet tones
+const AURORA_PALETTE: [Rgb; 6] = [
+    Rgb { r: 0, g: 46, b: 184 },   // Deep blue
+    Rgb { r: 0, g: 255, b: 212 },  // Teal (stronger)
+    Rgb { r: 20, g: 255, b: 120 }, // Green (muted/teal-leaning)
+    Rgb { r: 0, g: 200, b: 255 },  // Cyan/teal
+    Rgb { r: 136, g: 0, b: 255 },  // Violet
+    Rgb { r: 255, g: 0, b: 144 },  // Pink/magenta
+];
+
+// Lava lamp palette: warm red/orange/purple tones
+const LAVA_LAMP_PALETTE: [Rgb; 5] = [
+    Rgb { r: 60, g: 0, b: 20 },    // Dark magenta/black
+    Rgb { r: 210, g: 0, b: 56 },   // Deep red/magenta
+    Rgb { r: 255, g: 80, b: 0 },   // Orange-red
+    Rgb { r: 255, g: 173, b: 20 }, // Bright orange/yellow
+    Rgb { r: 197, g: 0, b: 200 },  // Purple accent
 ];
 
 // Balanced tuning: visible motion, still premium
@@ -59,27 +51,42 @@ const MAX_CELL1_LEDS: u32 = 40;
 const MAX_CELL2_LEDS: u32 = 18;
 const MAX_CELL3_LEDS: u32 = 60;
 
-/// Aurora effect with layered flowing gradients
+/// Flow effect variant selector
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FlowVariant {
+    /// Aurora: cool blue/teal/violet tones (northern lights)
+    Aurora,
+    /// Lava lamp: warm red/orange/purple tones
+    LavaLamp,
+}
+
+/// Flow effect with layered flowing gradients
+///
+/// This effect uses multi-layer value noise to create smooth organic motion.
+/// Different palettes produce different visual themes.
 #[derive(Debug, Clone)]
 #[allow(clippy::struct_field_names)]
-pub struct AuroraEffect {
+pub struct FlowEffect {
     layer1_period: u64,
     layer2_period: u64,
     layer3_period: u64,
+    variant: FlowVariant,
 }
 
-impl Default for AuroraEffect {
+impl Default for FlowEffect {
     fn default() -> Self {
-        Self::new()
+        Self::new(FlowVariant::Aurora)
     }
 }
 
-impl AuroraEffect {
-    pub const fn new() -> Self {
+impl FlowEffect {
+    /// Create a new flow effect with the specified variant
+    pub const fn new(variant: FlowVariant) -> Self {
         Self {
             layer1_period: LAYER1_PERIOD_MS,
             layer2_period: LAYER2_PERIOD_MS,
             layer3_period: LAYER3_PERIOD_MS,
+            variant,
         }
     }
 
@@ -122,22 +129,28 @@ impl AuroraEffect {
         blend8(v0, v1, t)
     }
 
-    /// Sample the aurora palette at position t (0-255)
+    /// Sample the palette at position t (0-255)
     #[allow(clippy::cast_possible_truncation)]
-    fn sample_palette(t: u8) -> Rgb {
+    fn sample_palette(palette: &[Rgb], t: u8) -> Rgb {
         // Map t (0-255) across N colors (N-1 segments) with blending.
-        //
-        // This avoids hard-coded segment sizes and keeps the palette flexible.
-        let segments = PALETTE.len().saturating_sub(1);
+        let segments = palette.len().saturating_sub(1);
         if segments == 0 {
-            return Rgb { r: 0, g: 0, b: 0 };
+            return palette.first().copied().unwrap_or(Rgb { r: 0, g: 0, b: 0 });
         }
 
         let scaled = u16::from(t) * (segments as u16); // 0..255*(N-1)
         let segment = (scaled >> 8).min(segments.saturating_sub(1) as u16) as usize;
         let local_t = (scaled & 0xFF) as u8;
 
-        blend_colors(PALETTE[segment], PALETTE[segment + 1], local_t)
+        blend_colors(palette[segment], palette[segment + 1], local_t)
+    }
+
+    /// Get the palette for the current variant
+    fn palette(&self) -> &'static [Rgb] {
+        match self.variant {
+            FlowVariant::Aurora => &AURORA_PALETTE,
+            FlowVariant::LavaLamp => &LAVA_LAMP_PALETTE,
+        }
     }
 
     /// Combine multiple noise layers into a final value
@@ -169,13 +182,12 @@ impl AuroraEffect {
         let n3 = Self::value_noise(x3.wrapping_add(p3.wrapping_mul(2)));
 
         // Blend layers: 50% base, 30% detail, 20% shimmer
-        let combined =
-            (u16::from(n1) * 128 + u16::from(n2) * 77 + u16::from(n3) * 51) >> 8;
+        let combined = (u16::from(n1) * 128 + u16::from(n2) * 77 + u16::from(n3) * 51) >> 8;
         combined as u8
     }
 }
 
-impl Effect for AuroraEffect {
+impl Effect for FlowEffect {
     // Don't use precise colors to avoid affecting brightness
     const PRECISE_COLORS: bool = false;
 
@@ -185,6 +197,7 @@ impl Effect for AuroraEffect {
         }
 
         let len = u32::try_from(leds.len()).unwrap_or(u32::MAX);
+        let palette = self.palette();
 
         for (i, led) in leds.iter_mut().enumerate() {
             // Get combined noise value
@@ -192,7 +205,7 @@ impl Effect for AuroraEffect {
             let noise = self.combined_noise(i_u32, len, now);
 
             // Sample palette and apply subtle brightness modulation
-            let base_color = Self::sample_palette(noise);
+            let base_color = Self::sample_palette(palette, noise);
 
             // Add subtle brightness variation based on noise for "silky" feel
             let brightness_mod = scale8(noise, 64).saturating_add(191); // 75%-100% range

@@ -12,3 +12,6 @@ lint *ARGS:
 
 lint-fix *ARGS:
     just lint --fix --allow-dirty {{ARGS}}
+
+test *ARGS:
+    cargo test {{ARGS}}

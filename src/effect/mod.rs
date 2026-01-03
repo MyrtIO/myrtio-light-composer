@@ -3,27 +3,25 @@
 //! All effects are stored in an enum to avoid heap allocations.
 //! Each effect implements the `Effect` trait.
 
-mod aurora;
+mod flow;
 mod rainbow;
 mod static_color;
-mod velvet_analog;
 
 use embassy_time::{Duration, Instant};
-pub use aurora::AuroraEffect;
+pub use flow::{FlowEffect, FlowVariant};
 pub use rainbow::RainbowEffect;
 pub use static_color::StaticColorEffect;
-pub use velvet_analog::VelvetAnalogEffect;
 
 use crate::{color::Rgb, effect::rainbow::RainbowVariant};
 
 const EFFECT_NAME_STATIC: &str = "static";
 const EFFECT_NAME_RAINBOW_MIRRORED: &str = "rainbow_mirrored";
-const EFFECT_NAME_RAINBOW_SHORT: &str = "rainbow_forward";
-const EFFECT_NAME_RAINBOW_LONG: &str = "rainbow_backward";
+const EFFECT_NAME_RAINBOW_SHORT: &str = "rainbow_short";
+const EFFECT_NAME_RAINBOW_LONG: &str = "rainbow_long";
 const EFFECT_NAME_RAINBOW_LONG_INVERSE: &str = "rainbow_long_inverse";
 const EFFECT_NAME_RAINBOW_SHORT_INVERSE: &str = "rainbow_short_inverse";
-const EFFECT_NAME_VELVET_ANALOG: &str = "velvet_analog";
 const EFFECT_NAME_AURORA: &str = "aurora";
+const EFFECT_NAME_LAVA_LAMP: &str = "lava_lamp";
 
 const EFFECT_ID_STATIC: u8 = 0;
 const EFFECT_ID_RAINBOW_MIRRORED: u8 = 1;
@@ -31,8 +29,8 @@ const EFFECT_ID_RAINBOW_LONG: u8 = 2;
 const EFFECT_ID_RAINBOW_SHORT: u8 = 3;
 const EFFECT_ID_RAINBOW_LONG_INVERSE: u8 = 4;
 const EFFECT_ID_RAINBOW_SHORT_INVERSE: u8 = 5;
-const EFFECT_ID_VELVET_ANALOG: u8 = 6;
-const EFFECT_ID_AURORA: u8 = 7;
+const EFFECT_ID_AURORA: u8 = 6;
+const EFFECT_ID_LAVA_LAMP: u8 = 7;
 
 pub trait Effect {
     /// Sets if effect requires precise (corrected) colors
@@ -63,10 +61,10 @@ pub enum EffectSlot {
     RainbowBackward(RainbowEffect),
     /// Static single color effect
     Static(StaticColorEffect),
-    /// Velvet analog gradient derived from selected color
-    VelvetAnalog(VelvetAnalogEffect),
     /// Aurora effect with flowing multi-layer gradients
-    Aurora(AuroraEffect),
+    Aurora(FlowEffect),
+    /// Lava lamp effect with warm flowing gradients
+    LavaLamp(FlowEffect),
 }
 
 /// Known effect ids that can be requested.
@@ -79,8 +77,8 @@ pub enum EffectId {
     RainbowLongInverse = EFFECT_ID_RAINBOW_LONG_INVERSE,
     RainbowShort = EFFECT_ID_RAINBOW_SHORT,
     RainbowShortInverse = EFFECT_ID_RAINBOW_SHORT_INVERSE,
-    VelvetAnalog = EFFECT_ID_VELVET_ANALOG,
     Aurora = EFFECT_ID_AURORA,
+    LavaLamp = EFFECT_ID_LAVA_LAMP,
 }
 
 impl Default for EffectSlot {
@@ -98,8 +96,8 @@ impl EffectId {
             EFFECT_ID_RAINBOW_SHORT => Self::RainbowShort,
             EFFECT_ID_RAINBOW_LONG_INVERSE => Self::RainbowLongInverse,
             EFFECT_ID_RAINBOW_SHORT_INVERSE => Self::RainbowShortInverse,
-            EFFECT_ID_VELVET_ANALOG => Self::VelvetAnalog,
             EFFECT_ID_AURORA => Self::Aurora,
+            EFFECT_ID_LAVA_LAMP => Self::LavaLamp,
             _ => return None,
         })
     }
@@ -122,10 +120,10 @@ impl EffectId {
             Self::RainbowShortInverse => EffectSlot::RainbowBackward(
                 RainbowEffect::new(RainbowVariant::Short).with_inverse(),
             ),
-            Self::VelvetAnalog => {
-                EffectSlot::VelvetAnalog(VelvetAnalogEffect::new(color))
+            Self::Aurora => EffectSlot::Aurora(FlowEffect::new(FlowVariant::Aurora)),
+            Self::LavaLamp => {
+                EffectSlot::LavaLamp(FlowEffect::new(FlowVariant::LavaLamp))
             }
-            Self::Aurora => EffectSlot::Aurora(AuroraEffect::new()),
         }
     }
 
@@ -137,8 +135,8 @@ impl EffectId {
             Self::RainbowShort => EFFECT_NAME_RAINBOW_LONG,
             Self::RainbowLongInverse => EFFECT_NAME_RAINBOW_LONG_INVERSE,
             Self::RainbowShortInverse => EFFECT_NAME_RAINBOW_SHORT_INVERSE,
-            Self::VelvetAnalog => EFFECT_NAME_VELVET_ANALOG,
             Self::Aurora => EFFECT_NAME_AURORA,
+            Self::LavaLamp => EFFECT_NAME_LAVA_LAMP,
         }
     }
 
@@ -148,8 +146,10 @@ impl EffectId {
             EFFECT_NAME_RAINBOW_MIRRORED => Some(Self::RainbowMirrored),
             EFFECT_NAME_RAINBOW_SHORT => Some(Self::RainbowLong),
             EFFECT_NAME_RAINBOW_LONG => Some(Self::RainbowShort),
-            EFFECT_NAME_VELVET_ANALOG => Some(Self::VelvetAnalog),
+            EFFECT_NAME_RAINBOW_LONG_INVERSE => Some(Self::RainbowLongInverse),
+            EFFECT_NAME_RAINBOW_SHORT_INVERSE => Some(Self::RainbowShortInverse),
             EFFECT_NAME_AURORA => Some(Self::Aurora),
+            EFFECT_NAME_LAVA_LAMP => Some(Self::LavaLamp),
             _ => None,
         }
     }
@@ -166,8 +166,7 @@ impl EffectSlot {
             Self::RainbowForward(_) => RainbowEffect::PRECISE_COLORS,
             Self::RainbowBackward(_) => RainbowEffect::PRECISE_COLORS,
             Self::Static(_) => StaticColorEffect::PRECISE_COLORS,
-            Self::VelvetAnalog(_) => VelvetAnalogEffect::PRECISE_COLORS,
-            Self::Aurora(_) => AuroraEffect::PRECISE_COLORS,
+            Self::Aurora(_) | Self::LavaLamp(_) => FlowEffect::PRECISE_COLORS,
         }
     }
 
@@ -178,8 +177,9 @@ impl EffectSlot {
             Self::RainbowForward(effect) => effect.render(now, leds),
             Self::RainbowBackward(effect) => effect.render(now, leds),
             Self::Static(effect) => effect.render(now, leds),
-            Self::VelvetAnalog(effect) => effect.render(now, leds),
-            Self::Aurora(effect) => effect.render(now, leds),
+            Self::Aurora(effect) | Self::LavaLamp(effect) => {
+                effect.render(now, leds);
+            }
         }
     }
 
@@ -190,8 +190,7 @@ impl EffectSlot {
             Self::RainbowForward(effect) => Effect::reset(effect),
             Self::RainbowBackward(effect) => Effect::reset(effect),
             Self::Static(effect) => Effect::reset(effect),
-            Self::VelvetAnalog(effect) => Effect::reset(effect),
-            Self::Aurora(effect) => Effect::reset(effect),
+            Self::Aurora(effect) | Self::LavaLamp(effect) => Effect::reset(effect),
         }
     }
 
@@ -202,16 +201,16 @@ impl EffectSlot {
             Self::RainbowForward(_) => EffectId::RainbowLong,
             Self::RainbowBackward(_) => EffectId::RainbowShort,
             Self::Static(_) => EffectId::Static,
-            Self::VelvetAnalog(_) => EffectId::VelvetAnalog,
             Self::Aurora(_) => EffectId::Aurora,
+            Self::LavaLamp(_) => EffectId::LavaLamp,
         }
     }
 
     /// Update the color of the current effect with optional transition.
+    #[allow(clippy::single_match)]
     pub fn set_color(&mut self, color: Rgb, duration: Duration, now: Instant) {
         match self {
             Self::Static(effect) => effect.set_color(color, duration, now),
-            Self::VelvetAnalog(effect) => effect.set_color(color, duration, now),
             _ => {}
         }
     }
@@ -219,11 +218,11 @@ impl EffectSlot {
     pub fn is_transitioning(&self) -> bool {
         match self {
             Self::Static(effect) => effect.is_transitioning(),
-            Self::VelvetAnalog(effect) => effect.is_transitioning(),
             Self::RainbowMirrored(_)
             | Self::RainbowForward(_)
             | Self::RainbowBackward(_)
-            | Self::Aurora(_) => false,
+            | Self::Aurora(_)
+            | Self::LavaLamp(_) => false,
         }
     }
 }
