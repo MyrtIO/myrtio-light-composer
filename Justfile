@@ -2,7 +2,7 @@ run-preview:
     cargo run --manifest-path preview/Cargo.toml
 
 publish:
-    cd lib; cargo publish
+    cargo publish
 
 format *ARGS:
     cargo +nightly fmt {{ARGS}}
