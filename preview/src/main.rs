@@ -354,13 +354,23 @@ impl eframe::App for PreviewApp {
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::RainbowForward,
-                                "rainbow_forward",
+                                EffectId::RainbowLong,
+                                "rainbow_long",
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::RainbowBackward,
-                                "rainbow_backward",
+                                EffectId::RainbowShort,
+                                "rainbow_short",
+                            );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::RainbowLongInverse,
+                                "rainbow_long_inverse",
+                            );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::RainbowShortInverse,
+                                "rainbow_short_inverse",
                             );
                             ui.selectable_value(
                                 &mut selected_effect,

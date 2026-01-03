@@ -17,9 +17,9 @@ const DEFAULT_CYCLE_MS: u64 = 12_000;
 const HUE_STEP: u8 = 60;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RainbowDirection {
-    Forward,
-    Backward,
+pub enum RainbowVariant {
+    Long,
+    Short,
     Mirrored,
 }
 
@@ -36,25 +36,27 @@ pub struct RainbowEffect {
     /// Saturation (0-255)
     saturation: u8,
     /// Direction of the rainbow
-    direction: RainbowDirection,
+    variant: RainbowVariant,
+    /// Inverse direction
+    inverse: bool,
 }
 
-impl Default for RainbowEffect {
-    fn default() -> Self {
+impl RainbowEffect {
+    /// Create a new rainbow effect with default parameters
+    pub const fn new(variant: RainbowVariant) -> Self {
         Self {
             cycle_duration: Duration::from_millis(DEFAULT_CYCLE_MS),
             value: 255,
             saturation: 255,
-            direction: RainbowDirection::Forward,
+            variant,
+            inverse: false,
         }
     }
-}
 
-impl RainbowEffect {
-    /// Create a new rainbow effect with custom parameters
+    /// Set the inverse direction
     #[must_use]
-    pub fn with_direction(mut self, direction: RainbowDirection) -> Self {
-        self.direction = direction;
+    pub fn with_inverse(mut self) -> Self {
+        self.inverse = true;
         self
     }
 
@@ -107,19 +109,23 @@ impl Effect for RainbowEffect {
             val: self.value,
         };
 
-        match self.direction {
-            RainbowDirection::Forward => {
+        match self.variant {
+            RainbowVariant::Short => {
                 fill_gradient_three_fp(leds, c1, c2, c3);
             }
-            RainbowDirection::Backward => {
-                fill_gradient_three_fp(leds, c2, c1, c3);
+            RainbowVariant::Long => {
+                fill_gradient_three_fp(leds, c3, c1, c2);
             }
-            RainbowDirection::Mirrored => {
+            RainbowVariant::Mirrored => {
                 let center_len = center_of(leds);
                 let (first_half, _) = leds.split_at_mut(center_len);
                 fill_gradient_three_fp(first_half, c1, c2, c3);
                 mirror_half(leds);
             }
+        }
+
+        if self.inverse {
+            leds.reverse();
         }
     }
 }

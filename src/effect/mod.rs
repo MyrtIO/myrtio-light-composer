@@ -12,19 +12,23 @@ pub use rainbow::RainbowEffect;
 pub use static_color::StaticColorEffect;
 pub use velvet_analog::VelvetAnalogEffect;
 
-use crate::{color::Rgb, effect::rainbow::RainbowDirection};
+use crate::{color::Rgb, effect::rainbow::RainbowVariant};
 
 const EFFECT_NAME_STATIC: &str = "static";
 const EFFECT_NAME_RAINBOW_MIRRORED: &str = "rainbow_mirrored";
-const EFFECT_NAME_RAINBOW_FORWARD: &str = "rainbow_forward";
-const EFFECT_NAME_RAINBOW_BACKWARD: &str = "rainbow_backward";
+const EFFECT_NAME_RAINBOW_SHORT: &str = "rainbow_forward";
+const EFFECT_NAME_RAINBOW_LONG: &str = "rainbow_backward";
+const EFFECT_NAME_RAINBOW_LONG_INVERSE: &str = "rainbow_long_inverse";
+const EFFECT_NAME_RAINBOW_SHORT_INVERSE: &str = "rainbow_short_inverse";
 const EFFECT_NAME_VELVET_ANALOG: &str = "velvet_analog";
 
 const EFFECT_ID_STATIC: u8 = 0;
 const EFFECT_ID_RAINBOW_MIRRORED: u8 = 1;
-const EFFECT_ID_RAINBOW_FORWARD: u8 = 2;
-const EFFECT_ID_RAINBOW_BACKWARD: u8 = 3;
-const EFFECT_ID_VELVET_ANALOG: u8 = 4;
+const EFFECT_ID_RAINBOW_LONG: u8 = 2;
+const EFFECT_ID_RAINBOW_SHORT: u8 = 3;
+const EFFECT_ID_RAINBOW_LONG_INVERSE: u8 = 4;
+const EFFECT_ID_RAINBOW_SHORT_INVERSE: u8 = 5;
+const EFFECT_ID_VELVET_ANALOG: u8 = 6;
 
 pub trait Effect {
     /// Sets if effect requires precise (corrected) colors
@@ -63,16 +67,18 @@ pub enum EffectSlot {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum EffectId {
-    Static          = EFFECT_ID_STATIC,
+    Static = EFFECT_ID_STATIC,
     RainbowMirrored = EFFECT_ID_RAINBOW_MIRRORED,
-    RainbowForward  = EFFECT_ID_RAINBOW_FORWARD,
-    RainbowBackward = EFFECT_ID_RAINBOW_BACKWARD,
-    VelvetAnalog    = EFFECT_ID_VELVET_ANALOG,
+    RainbowLong = EFFECT_ID_RAINBOW_LONG,
+    RainbowLongInverse = EFFECT_ID_RAINBOW_LONG_INVERSE,
+    RainbowShort = EFFECT_ID_RAINBOW_SHORT,
+    RainbowShortInverse = EFFECT_ID_RAINBOW_SHORT_INVERSE,
+    VelvetAnalog = EFFECT_ID_VELVET_ANALOG,
 }
 
 impl Default for EffectSlot {
     fn default() -> Self {
-        Self::RainbowMirrored(RainbowEffect::default())
+        Self::RainbowMirrored(RainbowEffect::new(RainbowVariant::Mirrored))
     }
 }
 
@@ -81,8 +87,10 @@ impl EffectId {
         Some(match value {
             EFFECT_ID_STATIC => Self::Static,
             EFFECT_ID_RAINBOW_MIRRORED => Self::RainbowMirrored,
-            EFFECT_ID_RAINBOW_FORWARD => Self::RainbowForward,
-            EFFECT_ID_RAINBOW_BACKWARD => Self::RainbowBackward,
+            EFFECT_ID_RAINBOW_LONG => Self::RainbowLong,
+            EFFECT_ID_RAINBOW_SHORT => Self::RainbowShort,
+            EFFECT_ID_RAINBOW_LONG_INVERSE => Self::RainbowLongInverse,
+            EFFECT_ID_RAINBOW_SHORT_INVERSE => Self::RainbowShortInverse,
             EFFECT_ID_VELVET_ANALOG => Self::VelvetAnalog,
             _ => return None,
         })
@@ -92,13 +100,19 @@ impl EffectId {
         match self {
             Self::Static => EffectSlot::Static(StaticColorEffect::new(color)),
             Self::RainbowMirrored => EffectSlot::RainbowMirrored(
-                RainbowEffect::default().with_direction(RainbowDirection::Mirrored),
+                RainbowEffect::new(RainbowVariant::Mirrored),
             ),
-            Self::RainbowForward => EffectSlot::RainbowForward(
-                RainbowEffect::default().with_direction(RainbowDirection::Forward),
+            Self::RainbowLong => {
+                EffectSlot::RainbowForward(RainbowEffect::new(RainbowVariant::Long))
+            }
+            Self::RainbowShort => EffectSlot::RainbowBackward(RainbowEffect::new(
+                RainbowVariant::Short,
+            )),
+            Self::RainbowLongInverse => EffectSlot::RainbowForward(
+                RainbowEffect::new(RainbowVariant::Long).with_inverse(),
             ),
-            Self::RainbowBackward => EffectSlot::RainbowBackward(
-                RainbowEffect::default().with_direction(RainbowDirection::Backward),
+            Self::RainbowShortInverse => EffectSlot::RainbowBackward(
+                RainbowEffect::new(RainbowVariant::Short).with_inverse(),
             ),
             Self::VelvetAnalog => {
                 EffectSlot::VelvetAnalog(VelvetAnalogEffect::new(color))
@@ -110,8 +124,10 @@ impl EffectId {
         match self {
             Self::Static => EFFECT_NAME_STATIC,
             Self::RainbowMirrored => EFFECT_NAME_RAINBOW_MIRRORED,
-            Self::RainbowForward => EFFECT_NAME_RAINBOW_FORWARD,
-            Self::RainbowBackward => EFFECT_NAME_RAINBOW_BACKWARD,
+            Self::RainbowLong => EFFECT_NAME_RAINBOW_SHORT,
+            Self::RainbowShort => EFFECT_NAME_RAINBOW_LONG,
+            Self::RainbowLongInverse => EFFECT_NAME_RAINBOW_LONG_INVERSE,
+            Self::RainbowShortInverse => EFFECT_NAME_RAINBOW_SHORT_INVERSE,
             Self::VelvetAnalog => EFFECT_NAME_VELVET_ANALOG,
         }
     }
@@ -120,8 +136,8 @@ impl EffectId {
         match s {
             EFFECT_NAME_STATIC => Some(Self::Static),
             EFFECT_NAME_RAINBOW_MIRRORED => Some(Self::RainbowMirrored),
-            EFFECT_NAME_RAINBOW_FORWARD => Some(Self::RainbowForward),
-            EFFECT_NAME_RAINBOW_BACKWARD => Some(Self::RainbowBackward),
+            EFFECT_NAME_RAINBOW_SHORT => Some(Self::RainbowLong),
+            EFFECT_NAME_RAINBOW_LONG => Some(Self::RainbowShort),
             EFFECT_NAME_VELVET_ANALOG => Some(Self::VelvetAnalog),
             _ => None,
         }
@@ -169,8 +185,8 @@ impl EffectSlot {
     pub fn id(&self) -> EffectId {
         match self {
             Self::RainbowMirrored(_) => EffectId::RainbowMirrored,
-            Self::RainbowForward(_) => EffectId::RainbowForward,
-            Self::RainbowBackward(_) => EffectId::RainbowBackward,
+            Self::RainbowForward(_) => EffectId::RainbowLong,
+            Self::RainbowBackward(_) => EffectId::RainbowShort,
             Self::Static(_) => EffectId::Static,
             Self::VelvetAnalog(_) => EffectId::VelvetAnalog,
         }
