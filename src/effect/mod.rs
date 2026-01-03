@@ -3,11 +3,13 @@
 //! All effects are stored in an enum to avoid heap allocations.
 //! Each effect implements the `Effect` trait.
 
+mod aurora;
 mod rainbow;
 mod static_color;
 mod velvet_analog;
 
 use embassy_time::{Duration, Instant};
+pub use aurora::AuroraEffect;
 pub use rainbow::RainbowEffect;
 pub use static_color::StaticColorEffect;
 pub use velvet_analog::VelvetAnalogEffect;
@@ -21,6 +23,7 @@ const EFFECT_NAME_RAINBOW_LONG: &str = "rainbow_backward";
 const EFFECT_NAME_RAINBOW_LONG_INVERSE: &str = "rainbow_long_inverse";
 const EFFECT_NAME_RAINBOW_SHORT_INVERSE: &str = "rainbow_short_inverse";
 const EFFECT_NAME_VELVET_ANALOG: &str = "velvet_analog";
+const EFFECT_NAME_AURORA: &str = "aurora";
 
 const EFFECT_ID_STATIC: u8 = 0;
 const EFFECT_ID_RAINBOW_MIRRORED: u8 = 1;
@@ -29,6 +32,7 @@ const EFFECT_ID_RAINBOW_SHORT: u8 = 3;
 const EFFECT_ID_RAINBOW_LONG_INVERSE: u8 = 4;
 const EFFECT_ID_RAINBOW_SHORT_INVERSE: u8 = 5;
 const EFFECT_ID_VELVET_ANALOG: u8 = 6;
+const EFFECT_ID_AURORA: u8 = 7;
 
 pub trait Effect {
     /// Sets if effect requires precise (corrected) colors
@@ -61,6 +65,8 @@ pub enum EffectSlot {
     Static(StaticColorEffect),
     /// Velvet analog gradient derived from selected color
     VelvetAnalog(VelvetAnalogEffect),
+    /// Aurora effect with flowing multi-layer gradients
+    Aurora(AuroraEffect),
 }
 
 /// Known effect ids that can be requested.
@@ -74,6 +80,7 @@ pub enum EffectId {
     RainbowShort = EFFECT_ID_RAINBOW_SHORT,
     RainbowShortInverse = EFFECT_ID_RAINBOW_SHORT_INVERSE,
     VelvetAnalog = EFFECT_ID_VELVET_ANALOG,
+    Aurora = EFFECT_ID_AURORA,
 }
 
 impl Default for EffectSlot {
@@ -92,6 +99,7 @@ impl EffectId {
             EFFECT_ID_RAINBOW_LONG_INVERSE => Self::RainbowLongInverse,
             EFFECT_ID_RAINBOW_SHORT_INVERSE => Self::RainbowShortInverse,
             EFFECT_ID_VELVET_ANALOG => Self::VelvetAnalog,
+            EFFECT_ID_AURORA => Self::Aurora,
             _ => return None,
         })
     }
@@ -117,6 +125,7 @@ impl EffectId {
             Self::VelvetAnalog => {
                 EffectSlot::VelvetAnalog(VelvetAnalogEffect::new(color))
             }
+            Self::Aurora => EffectSlot::Aurora(AuroraEffect::new()),
         }
     }
 
@@ -129,6 +138,7 @@ impl EffectId {
             Self::RainbowLongInverse => EFFECT_NAME_RAINBOW_LONG_INVERSE,
             Self::RainbowShortInverse => EFFECT_NAME_RAINBOW_SHORT_INVERSE,
             Self::VelvetAnalog => EFFECT_NAME_VELVET_ANALOG,
+            Self::Aurora => EFFECT_NAME_AURORA,
         }
     }
 
@@ -139,6 +149,7 @@ impl EffectId {
             EFFECT_NAME_RAINBOW_SHORT => Some(Self::RainbowLong),
             EFFECT_NAME_RAINBOW_LONG => Some(Self::RainbowShort),
             EFFECT_NAME_VELVET_ANALOG => Some(Self::VelvetAnalog),
+            EFFECT_NAME_AURORA => Some(Self::Aurora),
             _ => None,
         }
     }
@@ -156,6 +167,7 @@ impl EffectSlot {
             Self::RainbowBackward(_) => RainbowEffect::PRECISE_COLORS,
             Self::Static(_) => StaticColorEffect::PRECISE_COLORS,
             Self::VelvetAnalog(_) => VelvetAnalogEffect::PRECISE_COLORS,
+            Self::Aurora(_) => AuroraEffect::PRECISE_COLORS,
         }
     }
 
@@ -167,6 +179,7 @@ impl EffectSlot {
             Self::RainbowBackward(effect) => effect.render(now, leds),
             Self::Static(effect) => effect.render(now, leds),
             Self::VelvetAnalog(effect) => effect.render(now, leds),
+            Self::Aurora(effect) => effect.render(now, leds),
         }
     }
 
@@ -178,6 +191,7 @@ impl EffectSlot {
             Self::RainbowBackward(effect) => Effect::reset(effect),
             Self::Static(effect) => Effect::reset(effect),
             Self::VelvetAnalog(effect) => Effect::reset(effect),
+            Self::Aurora(effect) => Effect::reset(effect),
         }
     }
 
@@ -189,6 +203,7 @@ impl EffectSlot {
             Self::RainbowBackward(_) => EffectId::RainbowShort,
             Self::Static(_) => EffectId::Static,
             Self::VelvetAnalog(_) => EffectId::VelvetAnalog,
+            Self::Aurora(_) => EffectId::Aurora,
         }
     }
 
@@ -207,7 +222,8 @@ impl EffectSlot {
             Self::VelvetAnalog(effect) => effect.is_transitioning(),
             Self::RainbowMirrored(_)
             | Self::RainbowForward(_)
-            | Self::RainbowBackward(_) => false,
+            | Self::RainbowBackward(_)
+            | Self::Aurora(_) => false,
         }
     }
 }

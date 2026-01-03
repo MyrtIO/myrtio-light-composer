@@ -382,6 +382,11 @@ impl eframe::App for PreviewApp {
                                 EffectId::VelvetAnalog,
                                 "velvet_analog",
                             );
+                            ui.selectable_value(
+                                &mut selected_effect,
+                                EffectId::Aurora,
+                                "aurora",
+                            );
                         });
                     if selected_effect != self.effect_id {
                         self.effect_id = selected_effect;

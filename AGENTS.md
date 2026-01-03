@@ -89,6 +89,7 @@ The entry point is `src/lib.rs`. It re-exports the primary components needed to 
 *   **[`src/effect/rainbow.rs`](src/effect/rainbow.rs)**: `RainbowEffect`. Uses fixed-point math for smooth hue cycling.
 *   **[`src/effect/static_color.rs`](src/effect/static_color.rs)**: `StaticColorEffect`. Simple solid color with transition support. Requires precise colors.
 *   **[`src/effect/velvet_analog.rs`](src/effect/velvet_analog.rs)**: `VelvetAnalogEffect`. Complex gradient generator with "breathing" and subtle analog drift.
+*   **[`src/effect/aurora.rs`](src/effect/aurora.rs)**: `AuroraEffect`. Premium flowing multi-layer gradients using fixed-point noise and a built-in aurora palette.
 
 ### Filters (`src/filter/`)
 
