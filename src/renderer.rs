@@ -100,7 +100,7 @@ impl<'a, const MAX_LEDS: usize, const INTENT_CHANNEL_SIZE: usize>
         }
         self.filters.brightness.apply(frame);
 
-        frame
+        &self.frame_buffer
     }
 
     /// Process pending intents from the channel (non-blocking)

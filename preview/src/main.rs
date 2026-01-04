@@ -470,7 +470,7 @@ impl eframe::App for PreviewApp {
                     let origin = response.rect.min;
 
                     #[allow(clippy::cast_precision_loss)]
-                    for (i, pixel) in frame.iter().enumerate() {
+                    for (i, pixel) in frame.iter().take(self.led_count).enumerate() {
                         let row = i / leds_per_row;
                         let col = i % leds_per_row;
                         let x = origin.x + col as f32 * led_pitch;
