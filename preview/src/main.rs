@@ -103,7 +103,7 @@ impl PreviewApp {
             g: 180,
             b: 100,
         };
-        let initial_effect = EffectId::RainbowMirrored;
+        let initial_effect = EffectId::Fantasy;
         let initial_brightness: u8 = 255;
         let initial_led_count: u8 = DEFAULT_LED_COUNT as u8;
 
@@ -349,48 +349,48 @@ impl eframe::App for PreviewApp {
                         .show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::RainbowMirrored,
-                                "rainbow",
+                                EffectId::Fantasy,
+                                EffectId::Fantasy.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
                                 EffectId::RainbowLong,
-                                "rainbow_long",
+                                EffectId::RainbowLong.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
                                 EffectId::RainbowShort,
-                                "rainbow_short",
+                                EffectId::RainbowShort.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
                                 EffectId::RainbowLongInverse,
-                                "rainbow_long_inverse",
+                                EffectId::RainbowLongInverse.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::RainbowShortInverse,
-                                "rainbow_short_inverse",
+                                EffectId::Garland,
+                                EffectId::Garland.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
                                 EffectId::Static,
-                                "static",
+                                EffectId::Static.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::VelvetAnalog,
-                                "velvet_analog",
+                                EffectId::Neon,
+                                EffectId::Neon.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::Aurora,
-                                "aurora",
+                                EffectId::Rest,
+                                EffectId::Rest.as_str(),
                             );
                             ui.selectable_value(
                                 &mut selected_effect,
-                                EffectId::LavaLamp,
-                                "lava_lamp",
+                                EffectId::Sunset,
+                                EffectId::Sunset.as_str(),
                             );
                         });
                     if selected_effect != self.effect_id {

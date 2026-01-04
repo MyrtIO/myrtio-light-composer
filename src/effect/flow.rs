@@ -17,9 +17,9 @@ macro_rules! hex_palette {
     };
 }
 
-// Aurora palette: cool blue/teal/violet tones
+// Neon palette: cool blue/teal/violet tones
 #[allow(clippy::unreadable_literal)]
-const AURORA_PALETTE: [Rgb; 6] = hex_palette![
+const NEON_PALETTE: [Rgb; 6] = hex_palette![
     0x002EB8, // Deep blue
     0x00FFD4, // Teal (stronger)
     0x14FF78, // Green (muted/teal-leaning)
@@ -68,8 +68,8 @@ const MAX_CELL3_LEDS: u32 = 60;
 /// Flow effect variant selector
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FlowVariant {
-    /// Aurora: cool blue/teal/violet tones (northern lights)
-    Aurora,
+    /// Neon: cool blue/teal/violet tones (northern lights)
+    Neon,
     /// Lava lamp: warm red/orange/purple tones
     LavaLamp,
     /// Sunset: night blue → purple/magenta → orange → warm yellow
@@ -91,7 +91,7 @@ pub struct FlowEffect {
 
 impl Default for FlowEffect {
     fn default() -> Self {
-        Self::new(FlowVariant::Aurora)
+        Self::new(FlowVariant::Neon)
     }
 }
 
@@ -164,7 +164,7 @@ impl FlowEffect {
     /// Get the palette for the current variant
     fn palette(&self) -> &'static [Rgb] {
         match self.variant {
-            FlowVariant::Aurora => &AURORA_PALETTE,
+            FlowVariant::Neon => &NEON_PALETTE,
             FlowVariant::LavaLamp => &LAVA_LAMP_PALETTE,
             FlowVariant::Sunset => &SUNSET_PALETTE,
         }
